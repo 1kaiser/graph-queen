@@ -430,7 +430,7 @@
       font-size: 14px;
     }
   </style>
-  <script type="module" crossorigin src="/graph-queen/assets/index-CAM-fWle.js"></script>
+  <script type="module" crossorigin src="/graph-queen/assets/index-DKPtF2jW.js"></script>
 </head>
 <body>
   <!-- Top toggle buttons -->
@@ -446,20 +446,33 @@
       <!-- D3.js SVG will be inserted here -->
     </div>
 
+    <!-- Image Upload Button (automatic OCR) -->
+    <button class="mode-toggle" id="imageUploadBtn" onclick="document.getElementById('autoOCRInput').click()">
+      📸 Upload Image
+    </button>
+    <input type="file" id="autoOCRInput" accept="image/*" style="display: none;">
+
     <!-- Connect mode toggle -->
-    <button class="mode-toggle" id="connectModeBtn">
+    <button class="mode-toggle" id="connectModeBtn" style="top: 60px;">
       🔗 Connect Mode: OFF
     </button>
 
     <!-- Auto-connect button -->
-    <button class="mode-toggle" id="autoConnectBtn" style="top: 60px;">
+    <button class="mode-toggle" id="autoConnectBtn" style="top: 110px;">
       🤖 Auto-Connect Similar
     </button>
 
     <!-- Export button -->
-    <button class="mode-toggle" id="exportBtn" style="top: 110px;" onclick="exportGraphData()">
+    <button class="mode-toggle" id="exportBtn" style="top: 160px;" onclick="exportGraphData()">
       💾 Export Graph
     </button>
+
+    <!-- OCR Progress Indicator -->
+    <div id="ocrProgress" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(255,255,255,0.95); border: 3px solid #333; border-radius: 12px; padding: 30px 50px; z-index: 1000; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
+      <div style="font-size: 48px; margin-bottom: 15px;">⏳</div>
+      <div id="ocrProgressText" style="font-size: 18px; font-weight: bold; color: #333;">Processing image...</div>
+      <div id="ocrProgressPercent" style="font-size: 14px; color: #666; margin-top: 8px;">0%</div>
+    </div>
 
     <!-- Graph label -->
     <div class="graph-label">GRAPH</div>
