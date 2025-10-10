@@ -27,19 +27,47 @@
       border: 2px solid #333;
     }
 
-    /* Graph area */
+    /* Graph area with modern background */
     #graphArea {
       position: absolute;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      background: #FFFFFF;
+      background: #F8FAFC;
     }
 
-    #graphCanvas {
+    #graphArea svg {
       width: 100%;
       height: 100%;
+    }
+
+    /* Connect mode button */
+    .mode-toggle {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 20;
+      background: #FFFFFF;
+      border: 2px solid #333;
+      border-radius: 8px;
+      padding: 10px 20px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .mode-toggle.active {
+      background: #4CAF50;
+      color: white;
+    }
+
+    .mode-toggle:hover {
+      background: #E0E0E0;
+    }
+
+    .mode-toggle.active:hover {
+      background: #45A049;
     }
 
     /* Graph label */
@@ -132,7 +160,7 @@
     }
 
     #textBox {
-      width: 400px;
+      width: 520px;
       padding: 12px 20px;
       border: 2px solid #333;
       border-radius: 4px;
@@ -286,28 +314,168 @@
       border: 2px solid #D32F2F;
       display: block;
     }
+
+    /* Top toggle buttons - wordy style */
+    .top-toggle-buttons {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 10000;
+      display: flex;
+      gap: 10px;
+    }
+
+    .top-toggle-btn {
+      padding: 12px 24px;
+      background: #1976D2;
+      color: white;
+      border: 2px solid #333;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 14px;
+      transition: all 0.3s ease;
+      font-family: inherit;
+    }
+
+    .top-toggle-btn:hover {
+      background: #1565C0;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
+    .top-toggle-btn.active {
+      background: #4CAF50;
+    }
+
+    /* Slide containers - wordy style */
+    .slide-container {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 100%;
+      height: 100%;
+      background: #FFFFFF;
+      z-index: 9998;
+      overflow-y: auto;
+      transform: translateX(100%);
+      transition: transform 0.5s ease;
+      padding: 80px 40px 40px 40px;
+      box-sizing: border-box;
+    }
+
+    .slide-container.visible {
+      transform: translateX(0);
+    }
+
+    .slide-close-btn {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      width: 50px;
+      height: 50px;
+      background: #FF6B6B;
+      border: 3px solid #333;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 28px;
+      line-height: 44px;
+      text-align: center;
+      font-weight: bold;
+      color: #333;
+      z-index: 9999;
+      transition: all 0.3s ease;
+    }
+
+    .slide-close-btn:hover {
+      background: #FF5252;
+      transform: rotate(90deg);
+    }
+
+    .slide-content {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .slide-content h1 {
+      color: #1976D2;
+      margin-bottom: 30px;
+      font-size: 36px;
+    }
+
+    .slide-content h2 {
+      color: #333;
+      margin-top: 30px;
+      margin-bottom: 15px;
+      font-size: 24px;
+    }
+
+    .slide-content p, .slide-content ul {
+      font-size: 16px;
+      line-height: 1.6;
+      color: #555;
+      margin-bottom: 15px;
+    }
+
+    .slide-content ul {
+      list-style-type: disc;
+      margin-left: 30px;
+    }
+
+    .slide-content code {
+      background: #F5F5F5;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: monospace;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
+  <!-- Top toggle buttons -->
+  <div class="top-toggle-buttons">
+    <button class="top-toggle-btn" onclick="toggleOCRPanel()">📸 OCR</button>
+    <button class="top-toggle-btn" onclick="toggleHelpPanel()">❓ Help</button>
+    <button class="top-toggle-btn" onclick="toggleSettingsPanel()">⚙️ Settings</button>
+  </div>
+
   <div id="container">
     <!-- Graph visualization area -->
     <div id="graphArea">
-      <canvas id="graphCanvas"></canvas>
+      <!-- D3.js SVG will be inserted here -->
+    </div>
+
+    <!-- Image/PDF Upload Button (automatic OCR) -->
+    <button class="mode-toggle" id="imageUploadBtn" onclick="document.getElementById('autoOCRInput').click()">
+      📸 Upload Image/PDF
+    </button>
+    <input type="file" id="autoOCRInput" accept="image/*,application/pdf,.pdf" style="display: none;">
+
+    <!-- Connect mode toggle -->
+    <button class="mode-toggle" id="connectModeBtn" style="top: 60px;">
+      🔗 Connect Mode: OFF
+    </button>
+
+    <!-- Auto-connect button -->
+    <button class="mode-toggle" id="autoConnectBtn" style="top: 110px;">
+      🤖 Auto-Connect Similar
+    </button>
+
+    <!-- Export button -->
+    <button class="mode-toggle" id="exportBtn" style="top: 160px;" onclick="exportGraphData()">
+      💾 Export Graph
+    </button>
+
+    <!-- OCR Progress Indicator -->
+    <div id="ocrProgress" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(255,255,255,0.95); border: 3px solid #333; border-radius: 12px; padding: 30px 50px; z-index: 1000; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
+      <div style="font-size: 48px; margin-bottom: 15px;">⏳</div>
+      <div id="ocrProgressText" style="font-size: 18px; font-weight: bold; color: #333;">Processing image...</div>
+      <div id="ocrProgressPercent" style="font-size: 14px; color: #666; margin-top: 8px;">0%</div>
     </div>
 
     <!-- Graph label -->
     <div class="graph-label">GRAPH</div>
 
-    <!-- Slide-in button panel -->
-    <div id="slidePanel" class="draggable-panel">
-      <div class="drag-handle"></div>
-      <div class="panel-title">
-        BUTTON CLICK WILL<br>SLIDE IN
-      </div>
-      <a href="https://github.com/scribeocr/scribeocr" target="_blank">
-        https://github.com/scribeocr/scribeocr
-      </a>
-    </div>
 
     <!-- Upload button panel -->
     <div id="uploadPanel" class="draggable-panel" onclick="document.getElementById('fileInput').click()">
@@ -320,42 +488,176 @@
 
     <!-- Text box at bottom -->
     <div id="textBoxContainer">
-      <input type="text" id="textBox" placeholder="TEXT BOX">
+      <input type="text" id="textBox" placeholder="Type text and press Enter (connects to selected nodes)">
     </div>
   </div>
 
-  <!-- OCR Slide-in Panel -->
-  <div id="ocrSlidePanel">
-    <div class="close-btn" onclick="document.getElementById('ocrSlidePanel').classList.remove('open')">×</div>
+  <!-- OCR Slide Panel - Wordy Style -->
+  <div id="ocr-slide-panel" class="slide-container">
+    <div class="slide-close-btn" onclick="closeAllPanels()">×</div>
+    <div class="slide-content">
+      <h1>📸 OCR - Extract Text from Images</h1>
 
-    <h2>📸 Scribe OCR</h2>
+      <div class="ocr-section">
+        <h2>1. Upload Image</h2>
+        <button class="ocr-btn" onclick="document.getElementById('ocrImageInput').click()">
+          Choose Image File
+        </button>
+        <input type="file" id="ocrImageInput" accept="image/*">
+        <img id="ocrPreview" alt="Preview">
+      </div>
 
-    <div class="ocr-section">
-      <h3>1. Upload Image</h3>
-      <button class="ocr-btn" onclick="document.getElementById('ocrImageInput').click()">
-        Choose Image File
-      </button>
-      <input type="file" id="ocrImageInput" accept="image/*">
-      <img id="ocrPreview" alt="Preview">
-    </div>
+      <div class="ocr-section">
+        <h2>2. Extract Text</h2>
+        <button class="ocr-btn" id="extractBtn" disabled>
+          🔍 Run OCR
+        </button>
+        <div id="ocrStatus"></div>
+      </div>
 
-    <div class="ocr-section">
-      <h3>2. Extract Text</h3>
-      <button class="ocr-btn" id="extractBtn" disabled>
-        🔍 Run OCR
-      </button>
-      <div id="ocrStatus"></div>
-    </div>
+      <div class="ocr-section">
+        <h2>3. Extracted Text</h2>
+        <textarea id="ocrResult" placeholder="Extracted text will appear here..." readonly></textarea>
+        <button class="ocr-btn" id="useTextBtn" disabled>
+          👁️ Visualize Word Rectangles
+        </button>
+      </div>
 
-    <div class="ocr-section">
-      <h3>3. Extracted Text</h3>
-      <textarea id="ocrResult" placeholder="Extracted text will appear here..." readonly></textarea>
-      <button class="ocr-btn" id="useTextBtn" disabled>
-        ➕ Add to Graph
-      </button>
+      <div class="ocr-section">
+        <h2>4. Create Graph</h2>
+        <p style="font-size: 14px; color: #666;">After visualization, select specific words by clicking their rectangles (they turn blue), or create graph from all words.</p>
+        <button class="ocr-btn" id="createGraphSelectedBtn" onclick="createGraphFromWords(true)" disabled>
+          ➕ Create Graph from Selected
+        </button>
+        <button class="ocr-btn" id="createGraphBtn" onclick="createGraphFromWords(false)" disabled>
+          ➕ Create Graph from All
+        </button>
+      </div>
     </div>
   </div>
 
+  <!-- Help Slide Panel - Wordy Style -->
+  <div id="help-slide-panel" class="slide-container">
+    <div class="slide-close-btn" onclick="closeAllPanels()">×</div>
+    <div class="slide-content">
+      <h1>❓ Graph Queen - Help & Documentation</h1>
+
+      <h2>🎯 Features</h2>
+      <ul>
+        <li><strong>Molecular-style Graph:</strong> Hover over nodes to see connections highlighted</li>
+        <li><strong>Node Creation:</strong> Type in text box and press Enter to create nodes</li>
+        <li><strong>Connect to Selected:</strong> Select nodes first, then create a new node to auto-connect</li>
+        <li><strong>Manual Connections:</strong> Toggle Connect Mode and click two nodes to create edges</li>
+        <li><strong>AI Auto-Connect:</strong> Automatically connect similar nodes using text similarity</li>
+        <li><strong>OCR Word Rectangles:</strong> Upload images to extract and position word nodes</li>
+      </ul>
+
+      <h2>⌨️ Keyboard Shortcuts</h2>
+      <ul>
+        <li><code>Ctrl+S</code> - Save graph to JSON file</li>
+        <li><code>Ctrl+Z</code> - Undo last action</li>
+        <li><code>Ctrl+Shift+Z</code> - Redo action</li>
+        <li><code>Delete</code> or <code>Backspace</code> - Delete selected nodes/edges</li>
+        <li><code>Ctrl+Click</code> - Multi-select nodes or edges</li>
+      </ul>
+
+      <h2>🖱️ Mouse Controls</h2>
+      <ul>
+        <li><strong>Click node:</strong> Select/deselect node</li>
+        <li><strong>Double-click node:</strong> Edit node label</li>
+        <li><strong>Click edge:</strong> Select/deselect edge (turns red when selected)</li>
+        <li><strong>Drag node:</strong> Reposition node in graph</li>
+        <li><strong>Hover node:</strong> Show label and highlight connections</li>
+        <li><strong>Ctrl+Click:</strong> Add to multi-selection (nodes or edges)</li>
+      </ul>
+
+      <h2>📊 OCR Workflow Example</h2>
+      <p><strong>1. Upload Image:</strong> Click "📸 OCR" → Choose Image File</p>
+      <p><strong>2. Extract Text:</strong> Click "🔍 Run OCR" and wait for completion</p>
+      <p><strong>3. Visualize Words:</strong> Click "👁️ Visualize Word Rectangles" to see detected words with red rectangles</p>
+      <p><strong>4. Select Words:</strong> Click specific word rectangles to select them (they turn blue)</p>
+      <p><strong>5. Create Graph:</strong> Click "Create Graph from Selected" or "Create Graph from All"</p>
+      <p><strong>6. Connect Nodes:</strong> Use Connect Mode or Auto-Connect Similar</p>
+      <p><strong>7. Export:</strong> Click "💾 Export Graph" button to save with statistics</p>
+
+      <h2>📊 Manual Graph Building</h2>
+      <p>1. Click a few nodes to select them (they turn blue)</p>
+      <p>2. Type "Central Hub" in the text box at bottom</p>
+      <p>3. Press Enter - a new node will be created connected to all selected nodes!</p>
+      <p>4. Use "Auto-Connect Similar" to automatically link related words</p>
+      <p>5. Save your work with Ctrl+S or Export button</p>
+    </div>
+  </div>
+
+  <!-- Settings Slide Panel - Wordy Style -->
+  <div id="settings-slide-panel" class="slide-container">
+    <div class="slide-close-btn" onclick="closeAllPanels()">×</div>
+    <div class="slide-content">
+      <h1>⚙️ Settings & Configuration</h1>
+
+      <h2>🎨 Graph Appearance</h2>
+      <p>The graph uses a molecular-style visualization with:</p>
+      <ul>
+        <li>White circular nodes with black borders</li>
+        <li>Steelblue selection color</li>
+        <li>Light gray edges with subtle transparency</li>
+        <li>Force-directed layout for automatic positioning</li>
+      </ul>
+
+      <h2>🔧 Force Simulation Parameters</h2>
+      <ul>
+        <li><strong>Link Distance:</strong> 150px between connected nodes</li>
+        <li><strong>Charge Strength:</strong> -300 (node repulsion)</li>
+        <li><strong>Collision Radius:</strong> 40px (prevents overlap)</li>
+      </ul>
+
+      <h2>🤖 AI Similarity Settings</h2>
+      <p>The auto-connect feature uses two algorithms:</p>
+      <ul>
+        <li><strong>Levenshtein Distance:</strong> Measures edit distance between words</li>
+        <li><strong>Cosine Similarity:</strong> Uses character bigrams for comparison</li>
+        <li><strong>Default Threshold:</strong> 60% similarity required</li>
+        <li><strong>Custom Threshold:</strong> Adjustable when running auto-connect</li>
+      </ul>
+
+      <h2>💾 Data Management</h2>
+      <ul>
+        <li><strong>Undo History:</strong> 50 states stored</li>
+        <li><strong>Export Format:</strong> JSON with metadata</li>
+        <li><strong>File Naming:</strong> graph_YYYY-MM-DD_HH-mm-ss.json</li>
+      </ul>
+
+      <h2>🔍 OCR Settings</h2>
+      <ul>
+        <li><strong>Engine:</strong> Tesseract.js (browser-based)</li>
+        <li><strong>Language:</strong> English (eng)</li>
+        <li><strong>Output:</strong> Word bounding boxes with coordinates</li>
+        <li><strong>PDF Support:</strong> First page extraction via PDF.js</li>
+      </ul>
+
+      <h2>🎨 Basil.js + p5.js Demo</h2>
+      <p style="margin-bottom: 15px;">Interactive generative art demo inspired by basil.js drawing concepts. Click and drag in the canvas below to create organic shapes!</p>
+
+      <div style="border: 3px solid #333; border-radius: 8px; overflow: hidden; margin-bottom: 20px;">
+        <div id="p5-demo-container"></div>
+      </div>
+
+      <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+        <button onclick="resetP5Demo()" style="flex: 1; padding: 12px; background: #6366F1; color: white; border: 2px solid #333; border-radius: 8px; cursor: pointer; font-weight: bold;">
+          🔄 Clear Canvas
+        </button>
+        <button onclick="saveP5Canvas()" style="flex: 1; padding: 12px; background: #F59E0B; color: white; border: 2px solid #333; border-radius: 8px; cursor: pointer; font-weight: bold;">
+          💾 Save Image
+        </button>
+      </div>
+
+      <p style="font-size: 13px; color: #666;">
+        <strong>Instructions:</strong> Click and drag to draw flowing organic shapes. Each stroke creates a unique pattern based on your mouse movement, velocity, and pressure simulation.
+      </p>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
   <script type="module" src="/main.js"></script>
 </body>
 </html>

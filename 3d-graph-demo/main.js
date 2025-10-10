@@ -1,8 +1,15 @@
-console.log('🚀 Graph Queen - Starting initialization...');
+import * as d3 from 'd3';
+import Tesseract from 'tesseract.js';
+import * as pdfjsLib from 'pdfjs-dist';
 
-// Canvas setup for simple graph drawing
-const canvas = document.getElementById('graphCanvas');
-const ctx = canvas.getContext('2d');
+// Configure PDF.js worker - match the installed version 5.4.296
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.296/build/pdf.worker.min.mjs`;
+
+console.log('🚀 Graph Queen - Starting initialization with D3.js + PDF support...');
+
+// Get container for D3 SVG
+const graphArea = document.getElementById('graphArea');
+const container = document.getElementById('container');
 
 // Graph data storage
 let graphNodes = [];
@@ -90,59 +97,462 @@ function saveGraph() {
   console.log(`💾 Graph saved as ${filename}`);
 }
 
-function resizeCanvas() {
-  canvas.width = canvas.offsetWidth;
-  canvas.height = canvas.offsetHeight;
-  drawGraph();
-}
+// D3 force simulation setup
+let width = graphArea.clientWidth;
+let height = graphArea.clientHeight;
 
-// Draw simple graph lines (like in the mockup)
-function drawGraph() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+// Create SVG with modern background
+const svg = d3.select('#graphArea')
+  .append('svg')
+  .attr('width', '100%')
+  .attr('height', '100%')
+  .style('background', '#F8FAFC');
 
-  const centerX = canvas.width / 2 - 200;
-  const centerY = canvas.height / 2 - 100;
+// Create groups for edges and nodes
+const linkGroup = svg.append('g').attr('class', 'links');
+const nodeGroup = svg.append('g').attr('class', 'nodes');
 
-  // Draw intersecting lines to represent a simple graph
-  ctx.strokeStyle = '#333';
-  ctx.lineWidth = 2;
+// Selection state
+let selectedNodes = new Set();
+let selectedEdges = new Set();
+let connectMode = false;
+let firstSelectedNode = null;
 
-  // Line 1
-  ctx.beginPath();
-  ctx.moveTo(centerX - 100, centerY + 150);
-  ctx.lineTo(centerX + 50, centerY);
-  ctx.stroke();
+// Force simulation with adjusted parameters for smaller nodes
+let simulation = d3.forceSimulation(graphNodes)
+  .force('link', d3.forceLink(graphEdges).id(d => d.id).distance(100))
+  .force('charge', d3.forceManyBody().strength(-200))
+  .force('center', d3.forceCenter(width / 2, height / 2))
+  .force('collision', d3.forceCollide().radius(30));
 
-  // Line 2
-  ctx.beginPath();
-  ctx.moveTo(centerX - 50, centerY - 100);
-  ctx.lineTo(centerX + 100, centerY + 100);
-  ctx.stroke();
+function updateGraph() {
+  width = graphArea.clientWidth;
+  height = graphArea.clientHeight;
 
-  // Line 3
-  ctx.beginPath();
-  ctx.moveTo(centerX, centerY - 50);
-  ctx.lineTo(centerX + 150, centerY + 150);
-  ctx.stroke();
+  // Update simulation
+  simulation.nodes(graphNodes);
+  simulation.force('link').links(graphEdges);
+  simulation.force('center', d3.forceCenter(width / 2, height / 2));
+  simulation.alpha(0.3).restart();
 
-  // Draw nodes if any
-  ctx.fillStyle = '#1976D2';
-  graphNodes.forEach(node => {
-    ctx.beginPath();
-    ctx.arc(node.x, node.y, 8, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#333';
-    ctx.font = '12px sans-serif';
-    ctx.fillText(node.label, node.x + 12, node.y + 4);
-    ctx.fillStyle = '#1976D2';
+  // Draw edges
+  const links = linkGroup.selectAll('line')
+    .data(graphEdges, d => `${d.source.id}-${d.target.id}`);
+
+  links.exit().remove();
+
+  const linksEnter = links.enter()
+    .append('line')
+    .attr('stroke', '#94A3B8')
+    .attr('stroke-width', 2)
+    .attr('opacity', 0.5)
+    .style('cursor', 'pointer')
+    .on('click', edgeClicked);
+
+  const allLinks = linksEnter.merge(links);
+
+  // Update edge appearance based on selection with modern colors
+  allLinks
+    .attr('stroke', d => {
+      const edgeId = `${d.source.id}-${d.target.id}`;
+      return selectedEdges.has(edgeId) ? '#EF4444' : '#94A3B8';
+    })
+    .attr('stroke-width', d => {
+      const edgeId = `${d.source.id}-${d.target.id}`;
+      return selectedEdges.has(edgeId) ? 3 : 2;
+    })
+    .attr('opacity', d => {
+      const edgeId = `${d.source.id}-${d.target.id}`;
+      return selectedEdges.has(edgeId) ? 0.9 : 0.5;
+    });
+
+  // Draw nodes
+  const nodes = nodeGroup.selectAll('g')
+    .data(graphNodes, d => d.id);
+
+  nodes.exit().remove();
+
+  const nodesEnter = nodes.enter()
+    .append('g')
+    .call(d3.drag()
+      .on('start', dragStarted)
+      .on('drag', dragged)
+      .on('end', dragEnded))
+    .on('click', nodeClicked)
+    .on('dblclick', nodeDoubleClicked)
+    .on('mouseenter', function(event, d) { nodeMouseEnter(d, this); })
+    .on('mouseleave', function(event, d) { nodeMouseLeave(d, this); });
+
+  // Node circle - smaller with modern color palette
+  nodesEnter.append('circle')
+    .attr('r', 8)
+    .attr('fill', '#6366F1')
+    .attr('stroke', '#4F46E5')
+    .attr('stroke-width', 2);
+
+  // Permanent text label above each node
+  nodesEnter.append('text')
+    .attr('class', 'node-label-permanent')
+    .attr('y', -15)
+    .attr('text-anchor', 'middle')
+    .attr('font-size', '12px')
+    .attr('font-weight', '600')
+    .attr('fill', '#1E293B')
+    .attr('pointer-events', 'none')
+    .text(d => d.label);
+
+  const allNodes = nodesEnter.merge(nodes);
+
+  // Update node appearance with modern color palette
+  allNodes.select('circle')
+    .attr('fill', d => selectedNodes.has(d.id) ? '#F59E0B' : '#6366F1')
+    .attr('stroke', d => selectedNodes.has(d.id) ? '#D97706' : '#4F46E5')
+    .attr('stroke-width', d => selectedNodes.has(d.id) ? 2.5 : 2);
+
+  // Update text labels
+  allNodes.select('.node-label-permanent')
+    .text(d => d.label)
+    .attr('fill', d => selectedNodes.has(d.id) ? '#D97706' : '#1E293B')
+    .attr('font-weight', d => selectedNodes.has(d.id) ? '700' : '600');
+
+  // Attach drag-to-connect handlers to all nodes
+  allNodes
+    .on('mousedown.connect', function(event, d) {
+      if (!connectMode) return;
+
+      event.stopPropagation();
+      dragConnectionSource = d;
+
+      // Create temporary line with modern colors
+      dragConnectionLine = svg.insert('line', ':first-child + *')
+        .attr('class', 'drag-connection-temp')
+        .attr('x1', d.x)
+        .attr('y1', d.y)
+        .attr('x2', d.x)
+        .attr('y2', d.y)
+        .attr('stroke', '#8B5CF6')
+        .attr('stroke-width', 3)
+        .attr('stroke-dasharray', '8,4')
+        .attr('opacity', 0.8);
+
+      console.log(`🎨 Started connection from: ${d.label}`);
+    });
+
+  // Simulation tick
+  simulation.on('tick', () => {
+    allLinks
+      .attr('x1', d => d.source.x)
+      .attr('y1', d => d.source.y)
+      .attr('x2', d => d.target.x)
+      .attr('y2', d => d.target.y);
+
+    allNodes
+      .attr('transform', d => `translate(${d.x},${d.y})`);
   });
 
-  console.log('✅ Graph drawn with', graphNodes.length, 'nodes');
+  console.log('✅ D3 graph updated:', graphNodes.length, 'nodes,', graphEdges.length, 'edges');
 }
 
-// Initialize canvas
-resizeCanvas();
-window.addEventListener('resize', resizeCanvas);
+// Molecular-style hover effects with labels (like Distill GNN)
+function addNodeLabel(element, node) {
+  const group = d3.select(element);
+
+  // Add text with white stroke outline for readability (Distill style)
+  group.append('text')
+    .attr('class', 'node-label-outline')
+    .text(node.label)
+    .attr('x', 0)
+    .attr('y', 0)
+    .attr('text-anchor', 'middle')
+    .attr('dominant-baseline', 'middle')
+    .attr('stroke', '#fff')
+    .attr('stroke-width', 3)
+    .attr('font-size', '12px')
+    .attr('font-weight', 'bold')
+    .attr('pointer-events', 'none');
+
+  // Add black text on top
+  group.append('text')
+    .attr('class', 'node-label-text')
+    .text(node.label)
+    .attr('x', 0)
+    .attr('y', 0)
+    .attr('text-anchor', 'middle')
+    .attr('dominant-baseline', 'middle')
+    .attr('fill', '#000')
+    .attr('font-size', '12px')
+    .attr('font-weight', 'bold')
+    .attr('pointer-events', 'none');
+}
+
+function removeNodeLabel(element) {
+  d3.select(element).selectAll('.node-label-outline, .node-label-text').remove();
+}
+
+function nodeMouseEnter(node, element) {
+  // Highlight this node with modern colors
+  d3.select(element).select('circle')
+    .attr('r', 10)
+    .attr('stroke', '#8B5CF6')
+    .attr('stroke-width', 3);
+
+  // Enlarge label on hover
+  d3.select(element).select('.node-label-permanent')
+    .attr('font-size', '14px')
+    .attr('font-weight', '700')
+    .attr('fill', '#8B5CF6');
+
+  // Highlight connected edges with modern palette
+  linkGroup.selectAll('line')
+    .attr('stroke', edge => {
+      const isConnected = (edge.source.id === node.id || edge.target.id === node.id);
+      return isConnected ? '#8B5CF6' : '#94A3B8';
+    })
+    .attr('stroke-width', edge => {
+      const isConnected = (edge.source.id === node.id || edge.target.id === node.id);
+      return isConnected ? 3 : 2;
+    })
+    .attr('opacity', edge => {
+      const isConnected = (edge.source.id === node.id || edge.target.id === node.id);
+      return isConnected ? 0.9 : 0.3;
+    });
+
+  // Highlight connected nodes
+  nodeGroup.selectAll('g').select('circle')
+    .attr('r', d => {
+      if (d.id === node.id) return 10;
+      const isConnected = graphEdges.some(edge =>
+        (edge.source.id === node.id && edge.target.id === d.id) ||
+        (edge.target.id === node.id && edge.source.id === d.id)
+      );
+      return isConnected ? 9 : 8;
+    })
+    .attr('stroke', d => {
+      if (d.id === node.id) return '#8B5CF6';
+      const isConnected = graphEdges.some(edge =>
+        (edge.source.id === node.id && edge.target.id === d.id) ||
+        (edge.target.id === node.id && edge.source.id === d.id)
+      );
+      return isConnected ? '#8B5CF6' : (selectedNodes.has(d.id) ? '#D97706' : '#4F46E5');
+    })
+    .attr('stroke-width', d => {
+      if (d.id === node.id) return 3;
+      const isConnected = graphEdges.some(edge =>
+        (edge.source.id === node.id && edge.target.id === d.id) ||
+        (edge.target.id === node.id && edge.source.id === d.id)
+      );
+      return isConnected ? 2.5 : 2;
+    });
+
+  // Highlight connected node labels
+  nodeGroup.selectAll('g').select('.node-label-permanent')
+    .attr('fill', d => {
+      if (d.id === node.id) return '#8B5CF6';
+      const isConnected = graphEdges.some(edge =>
+        (edge.source.id === node.id && edge.target.id === d.id) ||
+        (edge.target.id === node.id && edge.source.id === d.id)
+      );
+      return isConnected ? '#8B5CF6' : (selectedNodes.has(d.id) ? '#D97706' : '#1E293B');
+    });
+}
+
+function nodeMouseLeave(node, element) {
+  // Reset node size and style with modern colors
+  nodeGroup.selectAll('g').select('circle')
+    .attr('r', 8)
+    .attr('fill', d => selectedNodes.has(d.id) ? '#F59E0B' : '#6366F1')
+    .attr('stroke', d => selectedNodes.has(d.id) ? '#D97706' : '#4F46E5')
+    .attr('stroke-width', d => selectedNodes.has(d.id) ? 2.5 : 2);
+
+  // Reset labels to normal size
+  nodeGroup.selectAll('g').select('.node-label-permanent')
+    .attr('font-size', '12px')
+    .attr('fill', d => selectedNodes.has(d.id) ? '#D97706' : '#1E293B')
+    .attr('font-weight', d => selectedNodes.has(d.id) ? '700' : '600');
+
+  // Reset all edges to default style
+  linkGroup.selectAll('line')
+    .attr('stroke', d => {
+      const edgeId = `${d.source.id}-${d.target.id}`;
+      return selectedEdges.has(edgeId) ? '#EF4444' : '#94A3B8';
+    })
+    .attr('stroke-width', d => {
+      const edgeId = `${d.source.id}-${d.target.id}`;
+      return selectedEdges.has(edgeId) ? 3 : 2;
+    })
+    .attr('opacity', d => {
+      const edgeId = `${d.source.id}-${d.target.id}`;
+      return selectedEdges.has(edgeId) ? 0.9 : 0.5;
+    });
+}
+
+// Drag functions
+function dragStarted(event, d) {
+  if (!event.active) simulation.alphaTarget(0.3).restart();
+  d.fx = d.x;
+  d.fy = d.y;
+}
+
+function dragged(event, d) {
+  d.fx = event.x;
+  d.fy = event.y;
+}
+
+function dragEnded(event, d) {
+  if (!event.active) simulation.alphaTarget(0);
+  // Keep position fixed after drag
+  // d.fx = null;
+  // d.fy = null;
+}
+
+// Node selection and connection
+function nodeClicked(event, d) {
+  event.stopPropagation();
+
+  if (connectMode) {
+    // Connect mode: create edge between nodes
+    if (!firstSelectedNode) {
+      firstSelectedNode = d;
+      selectedNodes.add(d.id);
+      console.log(`🔗 First node selected: ${d.label}`);
+    } else if (firstSelectedNode.id !== d.id) {
+      // Create edge
+      const edgeExists = graphEdges.some(e =>
+        (e.source.id === firstSelectedNode.id && e.target.id === d.id) ||
+        (e.source.id === d.id && e.target.id === firstSelectedNode.id)
+      );
+
+      if (!edgeExists) {
+        graphEdges.push({
+          source: firstSelectedNode.id,
+          target: d.id
+        });
+        console.log(`✅ Edge created: ${firstSelectedNode.label} → ${d.label}`);
+        saveState();
+      }
+
+      // Reset selection
+      selectedNodes.clear();
+      firstSelectedNode = null;
+      updateGraph();
+    }
+  } else {
+    // Selection mode
+    if (event.ctrlKey || event.metaKey) {
+      // Multi-select
+      if (selectedNodes.has(d.id)) {
+        selectedNodes.delete(d.id);
+      } else {
+        selectedNodes.add(d.id);
+      }
+    } else {
+      // Single select
+      selectedNodes.clear();
+      selectedNodes.add(d.id);
+    }
+    updateGraph();
+    console.log(`📍 Selected nodes: ${Array.from(selectedNodes).join(', ')}`);
+  }
+}
+
+// Node double-click to edit label
+function nodeDoubleClicked(event, d) {
+  event.stopPropagation();
+
+  const newLabel = prompt('Edit node label:', d.label);
+  if (newLabel !== null && newLabel.trim() !== '') {
+    d.label = newLabel.trim();
+    updateGraph();
+    saveState();
+    console.log(`✏️ Node label updated to: "${newLabel}"`);
+  }
+}
+
+// Edge click handler
+function edgeClicked(event, d) {
+  event.stopPropagation();
+
+  const edgeId = `${d.source.id}-${d.target.id}`;
+
+  if (event.ctrlKey || event.metaKey) {
+    // Multi-select edges
+    if (selectedEdges.has(edgeId)) {
+      selectedEdges.delete(edgeId);
+    } else {
+      selectedEdges.add(edgeId);
+    }
+  } else {
+    // Single select edge
+    selectedEdges.clear();
+    selectedNodes.clear();
+    selectedEdges.add(edgeId);
+  }
+
+  updateGraph();
+  console.log(`📍 Selected edges: ${Array.from(selectedEdges).join(', ')}`);
+}
+
+// Delete selected nodes and edges
+function deleteSelected() {
+  if (selectedNodes.size === 0 && selectedEdges.size === 0) {
+    console.log('⚠️ Nothing selected to delete');
+    return;
+  }
+
+  let deletedCount = 0;
+
+  // Delete selected nodes
+  if (selectedNodes.size > 0) {
+    const selectedIds = Array.from(selectedNodes);
+    deletedCount += selectedIds.length;
+
+    // Remove nodes
+    graphNodes = graphNodes.filter(node => !selectedNodes.has(node.id));
+
+    // Remove edges connected to deleted nodes
+    graphEdges = graphEdges.filter(edge => {
+      const sourceId = typeof edge.source === 'object' ? edge.source.id : edge.source;
+      const targetId = typeof edge.target === 'object' ? edge.target.id : edge.target;
+      return !selectedNodes.has(sourceId) && !selectedNodes.has(targetId);
+    });
+
+    console.log(`🗑️ Deleted ${selectedIds.length} nodes`);
+  }
+
+  // Delete selected edges
+  if (selectedEdges.size > 0) {
+    const selectedEdgeIds = Array.from(selectedEdges);
+    deletedCount += selectedEdgeIds.length;
+
+    graphEdges = graphEdges.filter(edge => {
+      const edgeId = `${edge.source.id}-${edge.target.id}`;
+      const reverseEdgeId = `${edge.target.id}-${edge.source.id}`;
+      return !selectedEdges.has(edgeId) && !selectedEdges.has(reverseEdgeId);
+    });
+
+    console.log(`🗑️ Deleted ${selectedEdgeIds.length} edges`);
+  }
+
+  // Clear selection
+  selectedNodes.clear();
+  selectedEdges.clear();
+  firstSelectedNode = null;
+
+  updateGraph();
+  saveState();
+
+  console.log(`✅ Total deleted: ${deletedCount} items`);
+}
+
+// Initialize
+updateGraph();
+
+window.addEventListener('resize', () => {
+  width = graphArea.clientWidth;
+  height = graphArea.clientHeight;
+  simulation.force('center', d3.forceCenter(width / 2, height / 2));
+  simulation.alpha(0.3).restart();
+});
 
 // Save initial state
 saveState();
@@ -166,12 +576,24 @@ document.addEventListener('keydown', (e) => {
     e.preventDefault();
     redo();
   }
+
+  // Delete or Backspace: Delete selected nodes
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    // Only delete if not typing in an input field
+    if (document.activeElement.tagName !== 'INPUT' &&
+        document.activeElement.tagName !== 'TEXTAREA') {
+      e.preventDefault();
+      deleteSelected();
+    }
+  }
 });
 
 console.log('⌨️ Keyboard shortcuts enabled:');
 console.log('  Ctrl+S: Save graph');
 console.log('  Ctrl+Z: Undo');
 console.log('  Ctrl+Shift+Z: Redo');
+console.log('  Delete/Backspace: Delete selected nodes');
+console.log('  Double-click node: Edit node label');
 
 // Draggable functionality
 let draggedElement = null;
@@ -253,31 +675,155 @@ textBox.addEventListener('keypress', (e) => {
 
     // Add text as a node to the graph
     const newNode = {
-      x: Math.random() * (canvas.width - 100) + 50,
-      y: Math.random() * (canvas.height - 100) + 50,
-      label: text
+      id: `node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      label: text,
+      x: width / 2 + (Math.random() - 0.5) * 200,
+      y: height / 2 + (Math.random() - 0.5) * 200
     };
     graphNodes.push(newNode);
-    drawGraph();
+
+    // If there are selected nodes, create edges from new node to all selected nodes
+    if (selectedNodes.size > 0) {
+      selectedNodes.forEach(selectedId => {
+        graphEdges.push({
+          source: newNode.id,
+          target: selectedId
+        });
+        console.log(`🔗 Connected new node "${text}" to selected node: ${selectedId}`);
+      });
+      console.log(`✨ Created ${selectedNodes.size} connections to selected nodes`);
+    }
+
+    updateGraph();
     saveState(); // Save state for undo/redo
 
     e.target.value = '';
     console.log(`📊 Added node: ${text}`);
+
+    if (selectedNodes.size > 0) {
+      alert(`Created node "${text}" connected to ${selectedNodes.size} selected node${selectedNodes.size > 1 ? 's' : ''}!`);
+    }
   }
 });
 
-// ========== OCR SLIDE-IN PANEL FUNCTIONALITY ==========
+// ========== WORDY-STYLE SLIDING PANEL FUNCTIONALITY ==========
 
-// Slide panel click handler - opens the OCR panel
-const slidePanel = document.getElementById('slidePanel');
-const ocrSlidePanel = document.getElementById('ocrSlidePanel');
+// Toggle functions for slide panels
+function toggleOCRPanel() {
+  const panel = document.getElementById('ocr-slide-panel');
+  const btn = event.target;
 
-slidePanel.addEventListener('click', (e) => {
-  if (e.target.tagName !== 'A') {
-    console.log('🎯 Opening OCR slide-in panel...');
-    ocrSlidePanel.classList.add('open');
+  if (panel.classList.contains('visible')) {
+    panel.classList.remove('visible');
+    btn.classList.remove('active');
+  } else {
+    closeAllPanels();
+    panel.classList.add('visible');
+    btn.classList.add('active');
   }
-});
+}
+
+function toggleHelpPanel() {
+  const panel = document.getElementById('help-slide-panel');
+  const btn = event.target;
+
+  if (panel.classList.contains('visible')) {
+    panel.classList.remove('visible');
+    btn.classList.remove('active');
+  } else {
+    closeAllPanels();
+    panel.classList.add('visible');
+    btn.classList.add('active');
+  }
+}
+
+function toggleSettingsPanel() {
+  const panel = document.getElementById('settings-slide-panel');
+  const btn = event.target;
+
+  if (panel.classList.contains('visible')) {
+    panel.classList.remove('visible');
+    btn.classList.remove('active');
+  } else {
+    closeAllPanels();
+    panel.classList.add('visible');
+    btn.classList.add('active');
+  }
+}
+
+function closeAllPanels() {
+  // Close all slide panels
+  const panels = document.querySelectorAll('.slide-container');
+  panels.forEach(panel => panel.classList.remove('visible'));
+
+  // Remove active state from all buttons
+  const buttons = document.querySelectorAll('.top-toggle-btn');
+  buttons.forEach(btn => btn.classList.remove('active'));
+}
+
+// Export comprehensive graph data
+function exportGraphData() {
+  if (graphNodes.length === 0) {
+    alert('No graph data to export! Create some nodes first.');
+    return;
+  }
+
+  const graphData = {
+    metadata: {
+      exported: new Date().toISOString(),
+      nodeCount: graphNodes.length,
+      edgeCount: graphEdges.length,
+      graphQueenVersion: '1.0.0',
+      hasOCRData: ocrVisualizationMode || graphNodes.some(n => n.wordBBox)
+    },
+    nodes: graphNodes.map(node => ({
+      id: node.id,
+      label: node.label,
+      x: node.x,
+      y: node.y,
+      wordBBox: node.wordBBox || null,
+      confidence: node.confidence || null
+    })),
+    edges: graphEdges.map(edge => ({
+      source: typeof edge.source === 'object' ? edge.source.id : edge.source,
+      target: typeof edge.target === 'object' ? edge.target.id : edge.target,
+      similarity: edge.similarity || null
+    })),
+    statistics: {
+      avgDegree: graphEdges.length > 0 ? (2 * graphEdges.length / graphNodes.length).toFixed(2) : 0,
+      density: graphNodes.length > 1 ?
+        (2 * graphEdges.length / (graphNodes.length * (graphNodes.length - 1))).toFixed(4) : 0
+    }
+  };
+
+  // Create JSON file
+  const jsonString = JSON.stringify(graphData, null, 2);
+  const blob = new Blob([jsonString], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+  const filename = `graph_queen_${timestamp}.json`;
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+
+  URL.revokeObjectURL(url);
+
+  console.log(`💾 Exported graph: ${graphNodes.length} nodes, ${graphEdges.length} edges`);
+  console.log(`📊 Statistics: Avg degree ${graphData.statistics.avgDegree}, Density ${graphData.statistics.density}`);
+
+  alert(`Graph exported successfully!\n\nFile: ${filename}\nNodes: ${graphNodes.length}\nEdges: ${graphEdges.length}\nAvg Degree: ${graphData.statistics.avgDegree}\nDensity: ${graphData.statistics.density}`);
+}
+
+// Make functions available globally for onclick handlers
+window.toggleOCRPanel = toggleOCRPanel;
+window.toggleHelpPanel = toggleHelpPanel;
+window.toggleSettingsPanel = toggleSettingsPanel;
+window.closeAllPanels = closeAllPanels;
+window.createGraphFromWords = createGraphFromWords;
+window.exportGraphData = exportGraphData;
 
 // OCR Image Upload
 const ocrImageInput = document.getElementById('ocrImageInput');
@@ -303,10 +849,11 @@ ocrImageInput.addEventListener('change', (e) => {
   }
 });
 
-// OCR Extraction using Scribe.js
+// OCR Extraction using Tesseract.js
 const ocrStatus = document.getElementById('ocrStatus');
 const ocrResult = document.getElementById('ocrResult');
 const useTextBtn = document.getElementById('useTextBtn');
+let lastOCRData = null; // Store full OCR data with bounding boxes
 
 extractBtn.addEventListener('click', async () => {
   if (!currentImageFile) {
@@ -314,57 +861,869 @@ extractBtn.addEventListener('click', async () => {
     return;
   }
 
-  console.log('🔍 OCR integration in progress...');
+  console.log('🔍 Starting OCR with Tesseract.js...');
 
-  // Temporary placeholder - will integrate scribeocr
   ocrStatus.className = 'loading';
-  ocrStatus.textContent = '⏳ ScribeOCR integration in progress... Please check back soon!';
+  ocrStatus.textContent = '⏳ Running OCR... This may take a moment.';
+  extractBtn.disabled = true;
 
-  // For demo purposes, show a sample extraction
-  setTimeout(() => {
-    const sampleText = `Sample OCR Text
-This is a placeholder until ScribeOCR is fully integrated.
-Node 1
-Node 2
-Node 3`;
+  try {
+    // Run Tesseract OCR
+    const result = await Tesseract.recognize(currentImageFile, 'eng', {
+      logger: (m) => {
+        if (m.status === 'recognizing text') {
+          const progress = Math.round(m.progress * 100);
+          ocrStatus.textContent = `⏳ Recognizing text: ${progress}%`;
+        }
+      }
+    });
 
-    ocrResult.value = sampleText;
+    console.log('✅ OCR completed:', result);
+    console.log('OCR data structure:', result.data);
+
+    // Validate OCR result structure
+    if (!result || !result.data) {
+      throw new Error('OCR returned invalid result structure');
+    }
+
+    // Store full OCR data for word rectangle extraction
+    lastOCRData = result.data;
+
+    // Extract text - with fallback handling
+    const text = result.data.text || '';
+
+    // Get words array safely
+    let words = [];
+    if (result.data.words && Array.isArray(result.data.words)) {
+      words = result.data.words;
+    } else if (result.data.lines && Array.isArray(result.data.lines)) {
+      // Fallback: extract words from lines
+      words = result.data.lines.flatMap(line =>
+        (line.words && Array.isArray(line.words)) ? line.words : []
+      );
+    } else if (result.data.paragraphs && Array.isArray(result.data.paragraphs)) {
+      // Fallback: extract words from paragraphs
+      words = result.data.paragraphs.flatMap(para =>
+        (para.lines && Array.isArray(para.lines)) ? para.lines.flatMap(line =>
+          (line.words && Array.isArray(line.words)) ? line.words : []
+        ) : []
+      );
+    }
+
+    // Update lastOCRData with processed words
+    if (!lastOCRData.words || !Array.isArray(lastOCRData.words)) {
+      lastOCRData.words = words;
+    }
+
+    const wordCount = words.length;
+
+    if (wordCount === 0) {
+      ocrStatus.className = 'error';
+      ocrStatus.textContent = '⚠️ No text detected in image. Try a clearer image with more contrast.';
+      ocrResult.value = text || 'No text detected';
+      extractBtn.disabled = false;
+      return;
+    }
+
+    ocrResult.value = text;
     ocrStatus.className = 'success';
-    ocrStatus.textContent = `✅ Demo text loaded (ScribeOCR integration coming soon)`;
+    ocrStatus.textContent = `✅ OCR complete! Found ${wordCount} words.`;
     useTextBtn.disabled = false;
-    console.log('💡 ScribeOCR will be integrated after studying the full repository');
-  }, 1000);
+    extractBtn.disabled = false;
+
+    console.log(`📊 Extracted ${wordCount} words with bounding boxes`);
+    console.log('Sample words:', words.slice(0, 3));
+  } catch (error) {
+    console.error('❌ OCR failed:', error);
+    console.error('Error stack:', error.stack);
+    ocrStatus.className = 'error';
+    ocrStatus.textContent = `❌ OCR failed: ${error.message}`;
+    extractBtn.disabled = false;
+  }
 });
 
-// Use extracted text to create graph nodes
-useTextBtn.addEventListener('click', () => {
-  const text = ocrResult.value.trim();
-  if (!text) return;
+// Variables for OCR visualization
+let ocrImageScale = 1;
+let ocrImageOffsetX = 0;
+let ocrImageOffsetY = 0;
+let ocrVisualizationMode = false;
 
-  console.log('📊 Adding OCR text to graph...');
+// Show word rectangles on image
+function showWordRectangles() {
+  if (!lastOCRData) {
+    console.error('❌ No OCR data available');
+    alert('Please run OCR first!');
+    return;
+  }
 
-  // Split text into lines and create nodes
-  const lines = text.split('\n').filter(line => line.trim().length > 0);
-  const newNodes = lines.slice(0, 10).map((line, i) => {
-    // Clean up the line (max 30 chars)
-    const label = line.trim().substring(0, 30);
-    return {
-      x: 100 + (i % 3) * 150,
-      y: 100 + Math.floor(i / 3) * 100,
-      label: label
+  // Validate words array
+  if (!lastOCRData.words || !Array.isArray(lastOCRData.words) || lastOCRData.words.length === 0) {
+    console.error('❌ No words detected in OCR data');
+    alert('No words were detected in the image.\n\nThis could mean:\n- The image has no text\n- The text is too blurry or low quality\n- OCR failed to detect readable text\n\nTry uploading a clearer image with higher contrast.');
+    return;
+  }
+
+  console.log('📊 Visualizing word rectangles...');
+  console.log(`Processing ${lastOCRData.words.length} words`);
+  ocrVisualizationMode = true;
+
+  // Display the uploaded image with word rectangles
+  if (currentImageFile) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        // Clear existing graph
+        const clearConfirm = graphNodes.length > 0 ?
+          confirm('This will clear the current graph. Continue?') : true;
+
+        if (!clearConfirm) return;
+
+        graphNodes = [];
+        graphEdges = [];
+        updateGraph();
+
+        // Add image to SVG as background
+        const existingImage = svg.select('image.ocr-background');
+        if (!existingImage.empty()) {
+          existingImage.remove();
+        }
+
+        // Calculate scale to fit image in viewport
+        const imgWidth = img.width;
+        const imgHeight = img.height;
+        ocrImageScale = Math.min(width / imgWidth, height / imgHeight, 1);
+
+        ocrImageOffsetX = (width - imgWidth * ocrImageScale) / 2;
+        ocrImageOffsetY = (height - imgHeight * ocrImageScale) / 2;
+
+        // Add image with higher opacity for visualization
+        svg.insert('image', ':first-child')
+          .attr('class', 'ocr-background')
+          .attr('href', e.target.result)
+          .attr('width', imgWidth * ocrImageScale)
+          .attr('height', imgHeight * ocrImageScale)
+          .attr('x', ocrImageOffsetX)
+          .attr('y', ocrImageOffsetY)
+          .attr('opacity', 0.7);
+
+        // Draw word bounding boxes
+        const rectGroup = svg.insert('g', ':first-child + *')
+          .attr('class', 'word-rectangles');
+
+        let validWordCount = 0;
+        lastOCRData.words.forEach((word, i) => {
+          // Validate word structure
+          if (!word || !word.bbox) {
+            console.warn(`Skipping word ${i}: missing bbox`, word);
+            return;
+          }
+
+          const bbox = word.bbox;
+
+          // Validate bbox coordinates
+          if (typeof bbox.x0 !== 'number' || typeof bbox.y0 !== 'number' ||
+              typeof bbox.x1 !== 'number' || typeof bbox.y1 !== 'number') {
+            console.warn(`Skipping word ${i}: invalid bbox coordinates`, bbox);
+            return;
+          }
+
+          const rectX = ocrImageOffsetX + bbox.x0 * ocrImageScale;
+          const rectY = ocrImageOffsetY + bbox.y0 * ocrImageScale;
+          const rectWidth = (bbox.x1 - bbox.x0) * ocrImageScale;
+          const rectHeight = (bbox.y1 - bbox.y0) * ocrImageScale;
+
+          // Skip invalid rectangles
+          if (rectWidth <= 0 || rectHeight <= 0) {
+            console.warn(`Skipping word ${i}: invalid dimensions`, { rectWidth, rectHeight });
+            return;
+          }
+
+          const rect = rectGroup.append('rect')
+            .attr('class', 'word-bbox')
+            .attr('data-word-index', i)
+            .attr('x', rectX)
+            .attr('y', rectY)
+            .attr('width', rectWidth)
+            .attr('height', rectHeight)
+            .attr('fill', 'none')
+            .attr('stroke', '#FF6B6B')
+            .attr('stroke-width', 2)
+            .attr('opacity', 0.8)
+            .style('cursor', 'pointer')
+            .on('click', function() {
+              // Toggle rectangle selection
+              const isSelected = d3.select(this).attr('stroke') === 'steelblue';
+              d3.select(this)
+                .attr('stroke', isSelected ? '#FF6B6B' : 'steelblue')
+                .attr('stroke-width', isSelected ? 2 : 3);
+            });
+
+          // Add word label if text exists
+          const wordText = word.text || word.word || '';
+          if (wordText) {
+            rectGroup.append('text')
+              .attr('x', rectX + rectWidth / 2)
+              .attr('y', rectY - 5)
+              .attr('text-anchor', 'middle')
+              .attr('fill', '#FF6B6B')
+              .attr('stroke', '#fff')
+              .attr('stroke-width', 3)
+              .attr('paint-order', 'stroke')
+              .attr('font-size', '10px')
+              .attr('font-weight', 'bold')
+              .text(wordText);
+          }
+
+          validWordCount++;
+        });
+
+        if (validWordCount === 0) {
+          alert('No valid word rectangles could be drawn!\n\nThe OCR data may be corrupted or the image format is not supported.');
+          svg.selectAll('.word-rectangles').remove();
+          svg.selectAll('.ocr-background').remove();
+          return;
+        }
+
+        console.log(`✅ Visualized ${validWordCount} word rectangles (out of ${lastOCRData.words.length} total)`);
+        alert(`Showing ${validWordCount} detected words!\n\nClick rectangles to select them (they turn blue), then click "Create Graph from Selected" or "Create Graph from All".`);
+
+        // Update OCR panel buttons
+        document.getElementById('createGraphBtn').disabled = false;
+        document.getElementById('createGraphSelectedBtn').disabled = false;
+      };
+      img.src = e.target.result;
     };
+    reader.readAsDataURL(currentImageFile);
+  }
+}
+
+// Create graph from all or selected word rectangles
+function createGraphFromWords(selectedOnly = false) {
+  if (!lastOCRData || !lastOCRData.words || lastOCRData.words.length === 0) {
+    alert('Please run OCR and visualize word rectangles first!');
+    return;
+  }
+
+  let wordsToAdd = [];
+
+  if (selectedOnly) {
+    // Get selected rectangles
+    const selectedRects = svg.selectAll('.word-bbox').filter(function() {
+      return d3.select(this).attr('stroke') === 'steelblue';
+    });
+
+    if (selectedRects.empty()) {
+      alert('Please select some word rectangles first by clicking on them!');
+      return;
+    }
+
+    selectedRects.each(function() {
+      const index = parseInt(d3.select(this).attr('data-word-index'));
+      wordsToAdd.push({ word: lastOCRData.words[index], index });
+    });
+  } else {
+    // Add all words
+    wordsToAdd = lastOCRData.words.map((word, index) => ({ word, index }));
+  }
+
+  // Create nodes from selected words with validation
+  const newNodes = wordsToAdd
+    .filter(({ word }) => word && word.bbox && word.bbox.x0 !== undefined)
+    .map(({ word, index }) => {
+      const bbox = word.bbox;
+      const nodeX = ocrImageOffsetX + (bbox.x0 + bbox.x1) / 2 * ocrImageScale;
+      const nodeY = ocrImageOffsetY + (bbox.y0 + bbox.y1) / 2 * ocrImageScale;
+
+      return {
+        id: `ocr_${Date.now()}_${index}`,
+        label: word.text || word.word || 'Unknown',
+        x: nodeX,
+        y: nodeY,
+        fx: nodeX,
+        fy: nodeY,
+        wordBBox: bbox,
+        confidence: word.confidence || null
+      };
+    });
+
+  if (newNodes.length === 0) {
+    alert('No valid nodes could be created from the selected words!');
+    return;
+  }
+
+  // Remove word rectangles visualization
+  svg.selectAll('.word-rectangles').remove();
+
+  // Add nodes to graph
+  graphNodes.push(...newNodes);
+  updateGraph();
+  saveState();
+
+  ocrVisualizationMode = false;
+
+  console.log(`✅ Created ${newNodes.length} nodes from OCR word rectangles`);
+  alert(`Created ${newNodes.length} nodes!\n\nNow you can:\n- Manually connect them in Connect Mode\n- Use Auto-Connect Similar\n- Export the graph with Ctrl+S`);
+
+  // Close the OCR panel
+  closeAllPanels();
+}
+
+// Use extracted text button - now shows visualization first
+useTextBtn.addEventListener('click', () => {
+  showWordRectangles();
+});
+
+// Connect mode toggle - now with drag-to-connect
+const connectModeBtn = document.getElementById('connectModeBtn');
+connectModeBtn.addEventListener('click', () => {
+  connectMode = !connectMode;
+  connectModeBtn.classList.toggle('active', connectMode);
+  connectModeBtn.textContent = connectMode ? '🔗 Connect Mode: ON' : '🔗 Connect Mode: OFF';
+
+  // Reset selection when toggling
+  selectedNodes.clear();
+  firstSelectedNode = null;
+  cleanupDragConnection();
+  updateGraph();
+
+  // Update cursor style
+  if (connectMode) {
+    svg.style('cursor', 'crosshair');
+    console.log('🔗 Connect mode: ON');
+    console.log('  → Drag from one node to another to create connection');
+  } else {
+    svg.style('cursor', 'default');
+    console.log('🔗 Connect mode: OFF');
+    console.log('  → Click nodes to select');
+  }
+});
+
+// ========== AI SIMILARITY-BASED AUTO-CONNECTION ==========
+
+/**
+ * Calculate text similarity between two strings using Levenshtein distance
+ * Returns a score between 0 (completely different) and 1 (identical)
+ */
+function calculateSimilarity(str1, str2) {
+  // Normalize strings
+  const s1 = str1.toLowerCase().trim();
+  const s2 = str2.toLowerCase().trim();
+
+  // If identical, return 1
+  if (s1 === s2) return 1;
+
+  // Calculate Levenshtein distance
+  const matrix = [];
+  for (let i = 0; i <= s1.length; i++) {
+    matrix[i] = [i];
+  }
+  for (let j = 0; j <= s2.length; j++) {
+    matrix[0][j] = j;
+  }
+
+  for (let i = 1; i <= s1.length; i++) {
+    for (let j = 1; j <= s2.length; j++) {
+      if (s1[i - 1] === s2[j - 1]) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1, // substitution
+          matrix[i][j - 1] + 1,     // insertion
+          matrix[i - 1][j] + 1      // deletion
+        );
+      }
+    }
+  }
+
+  const distance = matrix[s1.length][s2.length];
+  const maxLength = Math.max(s1.length, s2.length);
+
+  // Convert distance to similarity (0-1)
+  return 1 - (distance / maxLength);
+}
+
+/**
+ * Calculate cosine similarity between two strings using character bigrams
+ */
+function cosineSimilarity(str1, str2) {
+  const s1 = str1.toLowerCase().trim();
+  const s2 = str2.toLowerCase().trim();
+
+  if (s1 === s2) return 1;
+
+  // Generate character bigrams
+  const getBigrams = (str) => {
+    const bigrams = new Map();
+    for (let i = 0; i < str.length - 1; i++) {
+      const bigram = str.substring(i, i + 2);
+      bigrams.set(bigram, (bigrams.get(bigram) || 0) + 1);
+    }
+    return bigrams;
+  };
+
+  const bigrams1 = getBigrams(s1);
+  const bigrams2 = getBigrams(s2);
+
+  // Calculate dot product and magnitudes
+  let dotProduct = 0;
+  let magnitude1 = 0;
+  let magnitude2 = 0;
+
+  // Union of all bigrams
+  const allBigrams = new Set([...bigrams1.keys(), ...bigrams2.keys()]);
+
+  allBigrams.forEach(bigram => {
+    const count1 = bigrams1.get(bigram) || 0;
+    const count2 = bigrams2.get(bigram) || 0;
+    dotProduct += count1 * count2;
+    magnitude1 += count1 * count1;
+    magnitude2 += count2 * count2;
   });
 
-  graphNodes.push(...newNodes);
-  drawGraph();
-  saveState(); // Save state for undo/redo
+  if (magnitude1 === 0 || magnitude2 === 0) return 0;
 
-  console.log(`✅ Added ${newNodes.length} nodes from OCR text`);
-  alert(`Added ${newNodes.length} nodes to the graph!`);
+  return dotProduct / (Math.sqrt(magnitude1) * Math.sqrt(magnitude2));
+}
+
+/**
+ * Auto-connect similar nodes based on text similarity
+ */
+function autoConnectSimilarNodes(threshold = 0.6) {
+  if (graphNodes.length < 2) {
+    alert('Need at least 2 nodes to auto-connect!');
+    return;
+  }
+
+  console.log('🤖 Auto-connecting similar nodes...');
+  let edgesCreated = 0;
+
+  // Compare each pair of nodes
+  for (let i = 0; i < graphNodes.length; i++) {
+    for (let j = i + 1; j < graphNodes.length; j++) {
+      const node1 = graphNodes[i];
+      const node2 = graphNodes[j];
+
+      // Skip if edge already exists
+      const edgeExists = graphEdges.some(e =>
+        (e.source.id === node1.id && e.target.id === node2.id) ||
+        (e.source.id === node2.id && e.target.id === node1.id)
+      );
+
+      if (edgeExists) continue;
+
+      // Calculate similarity using both methods and take average
+      const levenshteinSim = calculateSimilarity(node1.label, node2.label);
+      const cosineSim = cosineSimilarity(node1.label, node2.label);
+      const similarity = (levenshteinSim + cosineSim) / 2;
+
+      console.log(`📊 Similarity "${node1.label}" ↔ "${node2.label}": ${(similarity * 100).toFixed(1)}%`);
+
+      // Create edge if similarity exceeds threshold
+      if (similarity >= threshold) {
+        graphEdges.push({
+          source: node1.id,
+          target: node2.id,
+          similarity: similarity
+        });
+        edgesCreated++;
+        console.log(`✅ Connected: "${node1.label}" ↔ "${node2.label}" (${(similarity * 100).toFixed(1)}%)`);
+      }
+    }
+  }
+
+  updateGraph();
+  saveState();
+
+  console.log(`🎉 Auto-connect complete! Created ${edgesCreated} edges.`);
+  alert(`Auto-connect complete!\nCreated ${edgesCreated} new connections based on text similarity (threshold: ${(threshold * 100).toFixed(0)}%)`);
+}
+
+// Auto-connect button handler
+const autoConnectBtn = document.getElementById('autoConnectBtn');
+autoConnectBtn.addEventListener('click', () => {
+  // Ask user for similarity threshold
+  const thresholdStr = prompt('Enter similarity threshold (0-100%):', '60');
+  if (thresholdStr === null) return; // User cancelled
+
+  const threshold = parseInt(thresholdStr) / 100;
+  if (isNaN(threshold) || threshold < 0 || threshold > 1) {
+    alert('Invalid threshold! Please enter a number between 0 and 100.');
+    return;
+  }
+
+  autoConnectSimilarNodes(threshold);
 });
 
-console.log('✨ Graph Queen ready with OCR!');
-console.log('💡 Drag panels to reposition them');
-console.log('💡 Click slide-in button to open OCR panel');
-console.log('💡 Click upload button to select files');
-console.log('💡 Type in text box and press Enter to add nodes');
+// ========== AUTOMATIC OCR WORKFLOW (STREAMLINED) ==========
+
+/**
+ * Automatic OCR processing when image is uploaded
+ * Workflow: Upload → Auto OCR → Auto create nodes → Ready to connect
+ */
+const autoOCRInput = document.getElementById('autoOCRInput');
+const ocrProgress = document.getElementById('ocrProgress');
+const ocrProgressText = document.getElementById('ocrProgressText');
+const ocrProgressPercent = document.getElementById('ocrProgressPercent');
+
+autoOCRInput.addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const isPDF = file.type === 'application/pdf';
+  const isImage = file.type.startsWith('image/');
+
+  if (!isPDF && !isImage) {
+    alert('Please select a valid image or PDF file!');
+    return;
+  }
+
+  console.log(`📷 Auto-processing ${isPDF ? 'PDF' : 'image'}: ${file.name}`);
+
+  // Show progress indicator
+  ocrProgress.style.display = 'block';
+  ocrProgressText.textContent = isPDF ? 'Loading PDF...' : 'Reading image...';
+  ocrProgressPercent.textContent = '0%';
+
+  try {
+    let imageToProcess = file;
+
+    // If PDF, convert first page to image
+    if (isPDF) {
+      ocrProgressText.textContent = 'Converting PDF to image...';
+      ocrProgressPercent.textContent = '25%';
+
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const page = await pdf.getPage(1); // Get first page
+
+      const viewport = page.getViewport({ scale: 2.0 }); // Higher scale for better OCR
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+
+      await page.render({
+        canvasContext: context,
+        viewport: viewport
+      }).promise;
+
+      // Convert canvas to blob
+      imageToProcess = await new Promise(resolve => {
+        canvas.toBlob(blob => resolve(blob), 'image/png');
+      });
+
+      ocrProgressText.textContent = 'PDF converted, starting OCR...';
+      ocrProgressPercent.textContent = '50%';
+    }
+    // Run Tesseract OCR with progress tracking
+    const result = await Tesseract.recognize(imageToProcess, 'eng', {
+      logger: (m) => {
+        if (m.status === 'recognizing text') {
+          const progress = Math.round(m.progress * 100);
+          const baseProgress = isPDF ? 50 : 0;
+          const adjustedProgress = baseProgress + (progress * (isPDF ? 0.5 : 1));
+          ocrProgressText.textContent = `Extracting text...`;
+          ocrProgressPercent.textContent = `${Math.round(adjustedProgress)}%`;
+        }
+      }
+    });
+
+    // Validate OCR result
+    if (!result || !result.data) {
+      throw new Error('OCR returned invalid result');
+    }
+
+    // Extract words with fallback hierarchy
+    let words = [];
+    if (result.data.words && Array.isArray(result.data.words)) {
+      words = result.data.words;
+    } else if (result.data.lines && Array.isArray(result.data.lines)) {
+      words = result.data.lines.flatMap(line =>
+        (line.words && Array.isArray(line.words)) ? line.words : []
+      );
+    } else if (result.data.paragraphs && Array.isArray(result.data.paragraphs)) {
+      words = result.data.paragraphs.flatMap(para =>
+        (para.lines && Array.isArray(para.lines)) ? para.lines.flatMap(line =>
+          (line.words && Array.isArray(line.words)) ? line.words : []
+        ) : []
+      );
+    }
+
+    if (words.length === 0) {
+      throw new Error('No text detected in image. Try a clearer image.');
+    }
+
+    ocrProgressText.textContent = 'Creating graph nodes...';
+    ocrProgressPercent.textContent = '100%';
+
+    // Clear existing graph
+    const clearConfirm = graphNodes.length > 0 ?
+      confirm(`Found ${words.length} words!\n\nClear current graph and create nodes from detected text?`) : true;
+
+    if (!clearConfirm) {
+      ocrProgress.style.display = 'none';
+      return;
+    }
+
+    graphNodes = [];
+    graphEdges = [];
+
+    // Load image to get dimensions for node positioning
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        console.log(`📐 Image dimensions: ${img.width} x ${img.height}`);
+        // Calculate scale to fit in viewport
+        const imgWidth = img.width;
+        const imgHeight = img.height;
+        const scale = Math.min(width / imgWidth, height / imgHeight, 1) * 0.8;
+        const offsetX = (width - imgWidth * scale) / 2;
+        const offsetY = (height - imgHeight * scale) / 2;
+
+        // Create nodes from words at their exact positions
+        const validWords = words.filter(word =>
+          word && word.bbox &&
+          typeof word.bbox.x0 === 'number' &&
+          typeof word.bbox.y0 === 'number'
+        );
+
+        validWords.forEach((word, index) => {
+          const bbox = word.bbox;
+          const centerX = offsetX + (bbox.x0 + bbox.x1) / 2 * scale;
+          const centerY = offsetY + (bbox.y0 + bbox.y1) / 2 * scale;
+
+          graphNodes.push({
+            id: `ocr_${Date.now()}_${index}`,
+            label: word.text || word.word || 'Unknown',
+            x: centerX,
+            y: centerY,
+            fx: centerX, // Fix position initially
+            fy: centerY,
+            wordBBox: bbox,
+            confidence: word.confidence || null
+          });
+        });
+
+        updateGraph();
+        saveState();
+
+        // Hide progress and show success
+        ocrProgress.style.display = 'none';
+
+        console.log(`✅ Created ${graphNodes.length} nodes from OCR`);
+        alert(`✅ Success!\n\nCreated ${graphNodes.length} nodes from detected words.\n\nNext steps:\n• Use "🔗 Connect Mode" to manually draw connections\n• Use "🤖 Auto-Connect Similar" to link related words\n• Drag nodes to reposition them\n• Press Ctrl+S to save or "💾 Export Graph"`);
+
+        // Reset file input
+        autoOCRInput.value = '';
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(imageToProcess);
+
+  } catch (error) {
+    console.error('❌ Auto-OCR failed:', error);
+    ocrProgress.style.display = 'none';
+    alert(`❌ OCR failed: ${error.message}\n\nPlease try:\n• A clearer image with better contrast\n• A different image format\n• An image with readable text`);
+    autoOCRInput.value = '';
+  }
+});
+
+// ========== ENHANCED DRAG-TO-CONNECT MODE (Basil.js/Obsidian style) ==========
+
+/**
+ * Enhanced connect mode: drag from one node to another to create connection
+ * Like Obsidian's canvas or basil.js drawing
+ */
+let dragConnectionLine = null;
+let dragConnectionSource = null;
+
+function enableDragToConnect() {
+  // Track mouse movement to show connection line
+  svg.on('mousemove.connect', function(event) {
+    if (!connectMode || !dragConnectionLine || !dragConnectionSource) return;
+
+    const [mouseX, mouseY] = d3.pointer(event);
+    dragConnectionLine
+      .attr('x2', mouseX)
+      .attr('y2', mouseY);
+  });
+
+  // Complete connection on mouseup over a node
+  svg.on('mouseup.connect', function(event) {
+    if (!connectMode || !dragConnectionSource) {
+      cleanupDragConnection();
+      return;
+    }
+
+    // Check if mouse is over a node
+    const [mouseX, mouseY] = d3.pointer(event);
+    const targetNode = graphNodes.find(node => {
+      const dist = Math.sqrt((node.x - mouseX) ** 2 + (node.y - mouseY) ** 2);
+      return dist < 25; // Within node radius
+    });
+
+    if (targetNode && targetNode.id !== dragConnectionSource.id) {
+      // Create edge
+      const edgeExists = graphEdges.some(e =>
+        (e.source.id === dragConnectionSource.id && e.target.id === targetNode.id) ||
+        (e.source.id === targetNode.id && e.target.id === dragConnectionSource.id)
+      );
+
+      if (!edgeExists) {
+        graphEdges.push({
+          source: dragConnectionSource.id,
+          target: targetNode.id
+        });
+        console.log(`✅ Connected: ${dragConnectionSource.label} → ${targetNode.label}`);
+        updateGraph();
+        saveState();
+      }
+    }
+
+    cleanupDragConnection();
+  });
+}
+
+function cleanupDragConnection() {
+  if (dragConnectionLine) {
+    dragConnectionLine.remove();
+    dragConnectionLine = null;
+  }
+  dragConnectionSource = null;
+}
+
+// Initialize drag-to-connect
+enableDragToConnect();
+
+// ========== BASIL.JS + P5.JS DEMO ==========
+
+/**
+ * Interactive generative art demo inspired by basil.js drawing concepts
+ * Creates organic, flowing shapes with randomness and movement
+ */
+let p5Instance = null;
+let particles = [];
+
+window.initializeP5Demo = function() {
+  // Only initialize when Settings panel is opened
+  if (p5Instance) return;
+
+  const sketch = (p) => {
+    p.setup = function() {
+      const canvas = p.createCanvas(600, 400);
+      canvas.parent('p5-demo-container');
+      p.background(248, 250, 252); // Match our #F8FAFC background
+      p.noStroke();
+    };
+
+    p.draw = function() {
+      // Fade effect for organic trails
+      p.fill(248, 250, 252, 10);
+      p.rect(0, 0, p.width, p.height);
+
+      // Update and draw particles
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const particle = particles[i];
+        particle.update();
+        particle.display(p);
+
+        if (particle.isDead()) {
+          particles.splice(i, 1);
+        }
+      }
+
+      // Create particles when mouse is dragged
+      if (p.mouseIsPressed && p.mouseX >= 0 && p.mouseX <= p.width &&
+          p.mouseY >= 0 && p.mouseY <= p.height) {
+        const velocity = p.dist(p.mouseX, p.mouseY, p.pmouseX, p.pmouseY);
+        for (let i = 0; i < 3; i++) {
+          particles.push(new Particle(
+            p.mouseX + p.random(-5, 5),
+            p.mouseY + p.random(-5, 5),
+            velocity
+          ));
+        }
+      }
+    };
+
+    // Particle class - basil.js inspired organic movement
+    class Particle {
+      constructor(x, y, velocity) {
+        this.x = x;
+        this.y = y;
+        this.vx = p.random(-velocity * 0.2, velocity * 0.2);
+        this.vy = p.random(-velocity * 0.2, velocity * 0.2);
+        this.life = 255;
+        this.size = p.random(5, 20);
+        // Modern color palette
+        const colors = [
+          [99, 102, 241],   // Indigo
+          [139, 92, 246],   // Purple
+          [245, 158, 11],   // Amber
+          [239, 68, 68]     // Red
+        ];
+        this.color = p.random(colors);
+      }
+
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.vx *= 0.95; // Friction
+        this.vy *= 0.95;
+        this.life -= 2;
+        this.size *= 0.98;
+      }
+
+      display(p) {
+        p.fill(this.color[0], this.color[1], this.color[2], this.life);
+        p.ellipse(this.x, this.y, this.size, this.size);
+
+        // Add glow effect
+        p.fill(this.color[0], this.color[1], this.color[2], this.life * 0.3);
+        p.ellipse(this.x, this.y, this.size * 1.5, this.size * 1.5);
+      }
+
+      isDead() {
+        return this.life <= 0 || this.size < 1;
+      }
+    }
+  };
+
+  p5Instance = new p5(sketch);
+  console.log('🎨 p5.js demo initialized');
+};
+
+window.resetP5Demo = function() {
+  if (!p5Instance) return;
+  particles = [];
+  p5Instance.background(248, 250, 252);
+  console.log('🔄 p5.js canvas cleared');
+};
+
+window.saveP5Canvas = function() {
+  if (!p5Instance) return;
+  p5Instance.saveCanvas('basil-demo', 'png');
+  console.log('💾 Canvas saved');
+};
+
+// Initialize p5 when Settings panel is opened
+const originalToggleSettings = window.toggleSettingsPanel;
+window.toggleSettingsPanel = function() {
+  originalToggleSettings();
+  // Initialize p5 demo after a short delay to ensure container is visible
+  setTimeout(() => {
+    if (document.getElementById('settings-slide-panel').classList.contains('visible')) {
+      window.initializeP5Demo();
+    }
+  }, 100);
+};
+
+console.log('✨ Graph Queen ready with STREAMLINED workflow!');
+console.log('💡 📸 Upload Image/PDF → Automatic OCR → Nodes created at word positions');
+console.log('💡 🔗 Connect Mode → Drag from one node to another to draw connections');
+console.log('💡 🤖 Auto-Connect → AI links similar words automatically');
+console.log('💡 Drag nodes to reposition, double-click to edit labels');
+console.log('💡 ⚙️ Settings → Basil.js + p5.js interactive demo included!');
+console.log('💡 Keyboard: Ctrl+S (save), Ctrl+Z (undo), Ctrl+Shift+Z (redo), Delete (remove)');
