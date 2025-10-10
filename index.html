@@ -150,13 +150,16 @@
       font-weight: bold;
     }
 
-    /* Text box at bottom */
+    /* Text box at bottom with voice input */
     #textBoxContainer {
       position: absolute;
       bottom: 40px;
       left: 50%;
       transform: translateX(-50%);
       z-index: 10;
+      display: flex;
+      gap: 10px;
+      align-items: center;
     }
 
     #textBox {
@@ -171,6 +174,40 @@
 
     #textBox::placeholder {
       color: #666;
+    }
+
+    #voiceBtn {
+      width: 50px;
+      height: 50px;
+      border: 2px solid #333;
+      border-radius: 50%;
+      background: #6366F1;
+      color: white;
+      font-size: 24px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+    }
+
+    #voiceBtn:hover {
+      background: #4F46E5;
+      transform: scale(1.05);
+    }
+
+    #voiceBtn.listening {
+      background: #EF4444;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+      }
+      50% {
+        box-shadow: 0 0 0 15px rgba(239, 68, 68, 0);
+      }
     }
 
     /* Upload input (hidden) */
@@ -430,7 +467,7 @@
       font-size: 14px;
     }
   </style>
-  <script type="module" crossorigin src="/graph-queen/assets/index-JAe2IFUP.js"></script>
+  <script type="module" crossorigin src="/graph-queen/assets/index-Buk2gs4W.js"></script>
 </head>
 <body>
   <!-- Top toggle buttons -->
@@ -487,9 +524,10 @@
     </div>
     <input type="file" id="fileInput" accept=".json,.mmd,.txt">
 
-    <!-- Text box at bottom -->
+    <!-- Text box at bottom with voice input -->
     <div id="textBoxContainer">
-      <input type="text" id="textBox" placeholder="Type text and press Enter (connects to selected nodes)">
+      <input type="text" id="textBox" placeholder="Type or speak text, then press Enter (connects to selected nodes)">
+      <button id="voiceBtn" title="Click to speak">🎤</button>
     </div>
   </div>
 
