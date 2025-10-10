@@ -430,7 +430,7 @@
       font-size: 14px;
     }
   </style>
-  <script type="module" crossorigin src="/graph-queen/assets/index-DPGbXUgY.js"></script>
+  <script type="module" crossorigin src="/graph-queen/assets/index-DcFTy5BN.js"></script>
 </head>
 <body>
   <!-- Top toggle buttons -->
@@ -633,9 +633,31 @@
         <li><strong>Engine:</strong> Tesseract.js (browser-based)</li>
         <li><strong>Language:</strong> English (eng)</li>
         <li><strong>Output:</strong> Word bounding boxes with coordinates</li>
+        <li><strong>PDF Support:</strong> First page extraction via PDF.js</li>
       </ul>
+
+      <h2>🎨 Basil.js + p5.js Demo</h2>
+      <p style="margin-bottom: 15px;">Interactive generative art demo inspired by basil.js drawing concepts. Click and drag in the canvas below to create organic shapes!</p>
+
+      <div style="border: 3px solid #333; border-radius: 8px; overflow: hidden; margin-bottom: 20px;">
+        <div id="p5-demo-container"></div>
+      </div>
+
+      <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+        <button onclick="resetP5Demo()" style="flex: 1; padding: 12px; background: #6366F1; color: white; border: 2px solid #333; border-radius: 8px; cursor: pointer; font-weight: bold;">
+          🔄 Clear Canvas
+        </button>
+        <button onclick="saveP5Canvas()" style="flex: 1; padding: 12px; background: #F59E0B; color: white; border: 2px solid #333; border-radius: 8px; cursor: pointer; font-weight: bold;">
+          💾 Save Image
+        </button>
+      </div>
+
+      <p style="font-size: 13px; color: #666;">
+        <strong>Instructions:</strong> Click and drag to draw flowing organic shapes. Each stroke creates a unique pattern based on your mouse movement, velocity, and pressure simulation.
+      </p>
     </div>
   </div>
-
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
 </body>
 </html>
