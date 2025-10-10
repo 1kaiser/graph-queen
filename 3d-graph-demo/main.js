@@ -108,9 +108,73 @@ const svg = d3.select('#graphArea')
   .attr('height', '100%')
   .style('background', '#F8FAFC');
 
-// Create groups for edges and nodes
-const linkGroup = svg.append('g').attr('class', 'links');
-const nodeGroup = svg.append('g').attr('class', 'nodes');
+// Create container group for zoom/pan
+const zoomContainer = svg.append('g').attr('class', 'zoom-container');
+
+// Create groups for edges and nodes inside the container
+const linkGroup = zoomContainer.append('g').attr('class', 'links');
+const nodeGroup = zoomContainer.append('g').attr('class', 'nodes');
+
+// Add zoom behavior
+const zoom = d3.zoom()
+  .scaleExtent([0.1, 10]) // Allow zoom from 10% to 1000%
+  .on('zoom', (event) => {
+    zoomContainer.attr('transform', event.transform);
+    currentTransform = event.transform;
+  });
+
+svg.call(zoom);
+
+// Store current zoom transform
+let currentTransform = d3.zoomIdentity;
+
+// Fit to screen function
+window.fitToScreen = function() {
+  if (graphNodes.length === 0) {
+    console.log('⚠️ No nodes to fit');
+    return;
+  }
+
+  // Calculate bounding box of all nodes
+  const padding = 50;
+  let minX = Infinity, minY = Infinity;
+  let maxX = -Infinity, maxY = -Infinity;
+
+  graphNodes.forEach(node => {
+    if (node.x < minX) minX = node.x;
+    if (node.x > maxX) maxX = node.x;
+    if (node.y < minY) minY = node.y;
+    if (node.y > maxY) maxY = node.y;
+  });
+
+  const nodeWidth = maxX - minX;
+  const nodeHeight = maxY - minY;
+
+  // Calculate scale to fit
+  const scale = Math.min(
+    (width - padding * 2) / nodeWidth,
+    (height - padding * 2) / nodeHeight,
+    10 // Max zoom level
+  );
+
+  // Calculate center position
+  const centerX = (minX + maxX) / 2;
+  const centerY = (minY + maxY) / 2;
+
+  // Calculate translation to center the nodes
+  const translateX = width / 2 - centerX * scale;
+  const translateY = height / 2 - centerY * scale;
+
+  // Apply zoom transform with smooth transition
+  svg.transition()
+    .duration(750)
+    .call(
+      zoom.transform,
+      d3.zoomIdentity.translate(translateX, translateY).scale(scale)
+    );
+
+  console.log(`🔍 Fit to screen: scale=${scale.toFixed(2)}, bounds=${nodeWidth.toFixed(0)}x${nodeHeight.toFixed(0)}`);
+};
 
 // Selection state
 let selectedNodes = new Set();
@@ -1604,6 +1668,11 @@ autoOCRInput.addEventListener('change', async (e) => {
 
         const totalNodes = graphNodes.length;
         console.log(`✅ Created ${totalNodes} nodes from OCR`);
+
+        // Auto-fit to screen after creating nodes
+        setTimeout(() => {
+          fitToScreen();
+        }, 500);
 
         const hasPositions = wordsWithBBox.length > 0;
         const layoutInfo = hasPositions
