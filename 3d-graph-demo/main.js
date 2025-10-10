@@ -1486,10 +1486,27 @@ autoOCRInput.addEventListener('change', async (e) => {
     }
 
     if (words.length === 0) {
-      // More helpful error message
+      // Fallback: Create words from raw text without bounding boxes
       const hasText = result.data.text && result.data.text.trim().length > 0;
       if (hasText) {
-        throw new Error(`OCR detected text but could not extract word positions. Text found: "${result.data.text.substring(0, 100)}..."`);
+        console.warn('⚠️ No word positions found, using text-only fallback');
+
+        // Split text into words (remove extra whitespace and newlines)
+        const rawWords = result.data.text
+          .split(/\s+/)
+          .filter(w => w.trim().length > 2) // Filter out very short words
+          .slice(0, 50); // Limit to first 50 words for performance
+
+        // Create pseudo-word objects without bounding boxes
+        words = rawWords.map((text, index) => ({
+          text: text,
+          word: text,
+          confidence: 50, // Lower confidence since we don't have position data
+          bbox: null // No bounding box available
+        }));
+
+        console.log(`✅ Created ${words.length} words from raw text (no positions)`);
+        console.log('Sample words:', words.slice(0, 5).map(w => w.text));
       } else {
         throw new Error('No text detected. This could mean:\n• The image is too blurry or low quality\n• The PDF contains only images, not text\n• Try a different image or PDF with clearer text');
       }
@@ -1523,14 +1540,22 @@ autoOCRInput.addEventListener('change', async (e) => {
         const offsetX = (width - imgWidth * scale) / 2;
         const offsetY = (height - imgHeight * scale) / 2;
 
-        // Create nodes from words at their exact positions
-        const validWords = words.filter(word =>
+        // Create nodes from words
+        // First, try to use words with bounding boxes at exact positions
+        const wordsWithBBox = words.filter(word =>
           word && word.bbox &&
           typeof word.bbox.x0 === 'number' &&
           typeof word.bbox.y0 === 'number'
         );
 
-        validWords.forEach((word, index) => {
+        const wordsWithoutBBox = words.filter(word =>
+          !word.bbox || typeof word.bbox.x0 !== 'number'
+        );
+
+        console.log(`📊 Words with positions: ${wordsWithBBox.length}, without: ${wordsWithoutBBox.length}`);
+
+        // Add positioned words
+        wordsWithBBox.forEach((word, index) => {
           const bbox = word.bbox;
           const centerX = offsetX + (bbox.x0 + bbox.x1) / 2 * scale;
           const centerY = offsetY + (bbox.y0 + bbox.y1) / 2 * scale;
@@ -1547,14 +1572,46 @@ autoOCRInput.addEventListener('change', async (e) => {
           });
         });
 
+        // Add words without positions in a grid layout
+        if (wordsWithoutBBox.length > 0) {
+          const gridCols = Math.ceil(Math.sqrt(wordsWithoutBBox.length));
+          const gridSpacing = 80;
+          const gridStartX = width / 2 - (gridCols * gridSpacing) / 2;
+          const gridStartY = height / 2 - (Math.ceil(wordsWithoutBBox.length / gridCols) * gridSpacing) / 2;
+
+          wordsWithoutBBox.forEach((word, index) => {
+            const col = index % gridCols;
+            const row = Math.floor(index / gridCols);
+
+            graphNodes.push({
+              id: `ocr_text_${Date.now()}_${index}`,
+              label: word.text || word.word || 'Unknown',
+              x: gridStartX + col * gridSpacing,
+              y: gridStartY + row * gridSpacing,
+              confidence: word.confidence || null,
+              wordBBox: null
+            });
+          });
+
+          console.log(`📐 Positioned ${wordsWithoutBBox.length} words in grid layout`);
+        }
+
         updateGraph();
         saveState();
 
         // Hide progress and show success
         ocrProgress.style.display = 'none';
 
-        console.log(`✅ Created ${graphNodes.length} nodes from OCR`);
-        alert(`✅ Success!\n\nCreated ${graphNodes.length} nodes from detected words.\n\nNext steps:\n• Use "🔗 Connect Mode" to manually draw connections\n• Use "🤖 Auto-Connect Similar" to link related words\n• Drag nodes to reposition them\n• Press Ctrl+S to save or "💾 Export Graph"`);
+        const totalNodes = graphNodes.length;
+        console.log(`✅ Created ${totalNodes} nodes from OCR`);
+
+        const hasPositions = wordsWithBBox.length > 0;
+        const layoutInfo = hasPositions
+          ? `${wordsWithBBox.length} positioned at detected locations` +
+            (wordsWithoutBBox.length > 0 ? `, ${wordsWithoutBBox.length} in grid layout` : '')
+          : `All ${wordsWithoutBBox.length} words in grid layout (no position data available)`;
+
+        alert(`✅ Success!\n\nCreated ${totalNodes} nodes from detected text.\n${layoutInfo}\n\nNext steps:\n• Use "🔗 Connect Mode" to manually draw connections\n• Use "🤖 Auto-Connect Similar" to link related words\n• Drag nodes to reposition them\n• Press Ctrl+S to save or "💾 Export Graph"`);
 
         // Reset file input
         autoOCRInput.value = '';
