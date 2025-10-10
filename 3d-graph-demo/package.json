@@ -6,12 +6,14 @@
     "dev": "vite --host",
     "build": "vite build",
     "preview": "vite preview --host",
+    "deploy": "npm run build && gh-pages -d dist",
     "test": "playwright test",
     "test:headed": "playwright test --headed",
     "test:debug": "playwright test --debug"
   },
   "devDependencies": {
     "@playwright/test": "^1.40.1",
+    "gh-pages": "^6.3.0",
     "vite": "^5.0.0"
   },
   "dependencies": {
