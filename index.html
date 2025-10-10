@@ -430,7 +430,7 @@
       font-size: 14px;
     }
   </style>
-  <script type="module" crossorigin src="/graph-queen/assets/index-BjvKeoem.js"></script>
+  <script type="module" crossorigin src="/graph-queen/assets/index-CIhedvxz.js"></script>
 </head>
 <body>
   <!-- Top toggle buttons -->
@@ -454,6 +454,11 @@
     <!-- Auto-connect button -->
     <button class="mode-toggle" id="autoConnectBtn" style="top: 60px;">
       🤖 Auto-Connect Similar
+    </button>
+
+    <!-- Export button -->
+    <button class="mode-toggle" id="exportBtn" style="top: 110px;" onclick="exportGraphData()">
+      💾 Export Graph
     </button>
 
     <!-- Graph label -->
@@ -502,7 +507,18 @@
         <h2>3. Extracted Text</h2>
         <textarea id="ocrResult" placeholder="Extracted text will appear here..." readonly></textarea>
         <button class="ocr-btn" id="useTextBtn" disabled>
-          ➕ Add to Graph
+          👁️ Visualize Word Rectangles
+        </button>
+      </div>
+
+      <div class="ocr-section">
+        <h2>4. Create Graph</h2>
+        <p style="font-size: 14px; color: #666;">After visualization, select specific words by clicking their rectangles (they turn blue), or create graph from all words.</p>
+        <button class="ocr-btn" id="createGraphSelectedBtn" onclick="createGraphFromWords(true)" disabled>
+          ➕ Create Graph from Selected
+        </button>
+        <button class="ocr-btn" id="createGraphBtn" onclick="createGraphFromWords(false)" disabled>
+          ➕ Create Graph from All
         </button>
       </div>
     </div>
@@ -543,12 +559,21 @@
         <li><strong>Ctrl+Click:</strong> Add to multi-selection (nodes or edges)</li>
       </ul>
 
-      <h2>📊 Workflow Example</h2>
+      <h2>📊 OCR Workflow Example</h2>
+      <p><strong>1. Upload Image:</strong> Click "📸 OCR" → Choose Image File</p>
+      <p><strong>2. Extract Text:</strong> Click "🔍 Run OCR" and wait for completion</p>
+      <p><strong>3. Visualize Words:</strong> Click "👁️ Visualize Word Rectangles" to see detected words with red rectangles</p>
+      <p><strong>4. Select Words:</strong> Click specific word rectangles to select them (they turn blue)</p>
+      <p><strong>5. Create Graph:</strong> Click "Create Graph from Selected" or "Create Graph from All"</p>
+      <p><strong>6. Connect Nodes:</strong> Use Connect Mode or Auto-Connect Similar</p>
+      <p><strong>7. Export:</strong> Click "💾 Export Graph" button to save with statistics</p>
+
+      <h2>📊 Manual Graph Building</h2>
       <p>1. Click a few nodes to select them (they turn blue)</p>
       <p>2. Type "Central Hub" in the text box at bottom</p>
       <p>3. Press Enter - a new node will be created connected to all selected nodes!</p>
       <p>4. Use "Auto-Connect Similar" to automatically link related words</p>
-      <p>5. Save your work with Ctrl+S</p>
+      <p>5. Save your work with Ctrl+S or Export button</p>
     </div>
   </div>
 
