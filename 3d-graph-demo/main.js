@@ -1393,28 +1393,48 @@ autoOCRInput.addEventListener('change', async (e) => {
       ocrProgressText.textContent = 'Converting PDF to image...';
       ocrProgressPercent.textContent = '25%';
 
-      const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      const page = await pdf.getPage(1); // Get first page
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
-      const viewport = page.getViewport({ scale: 2.0 }); // Higher scale for better OCR
-      const canvas = document.createElement('canvas');
-      const context = canvas.getContext('2d');
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
+        console.log(`📄 PDF loaded: ${pdf.numPages} pages`);
 
-      await page.render({
-        canvasContext: context,
-        viewport: viewport
-      }).promise;
+        const page = await pdf.getPage(1); // Get first page
 
-      // Convert canvas to blob
-      imageToProcess = await new Promise(resolve => {
-        canvas.toBlob(blob => resolve(blob), 'image/png');
-      });
+        // Try higher scale (3.0) for better text recognition
+        const viewport = page.getViewport({ scale: 3.0 });
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
 
-      ocrProgressText.textContent = 'PDF converted, starting OCR...';
-      ocrProgressPercent.textContent = '50%';
+        console.log(`🖼️ Canvas size: ${canvas.width}x${canvas.height}`);
+
+        // White background for better OCR
+        context.fillStyle = 'white';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+
+        await page.render({
+          canvasContext: context,
+          viewport: viewport
+        }).promise;
+
+        console.log('✅ PDF page rendered to canvas');
+
+        // Convert canvas to blob with higher quality
+        imageToProcess = await new Promise(resolve => {
+          canvas.toBlob(blob => {
+            console.log(`📦 Blob created: ${blob.size} bytes, type: ${blob.type}`);
+            resolve(blob);
+          }, 'image/png', 1.0);
+        });
+
+        ocrProgressText.textContent = 'PDF converted, starting OCR...';
+        ocrProgressPercent.textContent = '50%';
+      } catch (pdfError) {
+        console.error('❌ PDF conversion failed:', pdfError);
+        throw new Error(`PDF conversion failed: ${pdfError.message}`);
+      }
     }
     // Run Tesseract OCR with progress tracking
     const result = await Tesseract.recognize(imageToProcess, 'eng', {
@@ -1436,22 +1456,43 @@ autoOCRInput.addEventListener('change', async (e) => {
 
     // Extract words with fallback hierarchy
     let words = [];
+    console.log('📊 OCR result structure:', {
+      hasWords: !!result.data.words,
+      hasLines: !!result.data.lines,
+      hasParagraphs: !!result.data.paragraphs,
+      text: result.data.text?.substring(0, 100)
+    });
+
     if (result.data.words && Array.isArray(result.data.words)) {
       words = result.data.words;
+      console.log(`✅ Found ${words.length} words directly`);
     } else if (result.data.lines && Array.isArray(result.data.lines)) {
       words = result.data.lines.flatMap(line =>
         (line.words && Array.isArray(line.words)) ? line.words : []
       );
+      console.log(`✅ Extracted ${words.length} words from ${result.data.lines.length} lines`);
     } else if (result.data.paragraphs && Array.isArray(result.data.paragraphs)) {
       words = result.data.paragraphs.flatMap(para =>
         (para.lines && Array.isArray(para.lines)) ? para.lines.flatMap(line =>
           (line.words && Array.isArray(line.words)) ? line.words : []
         ) : []
       );
+      console.log(`✅ Extracted ${words.length} words from paragraphs`);
+    }
+
+    console.log(`📝 Total words extracted: ${words.length}`);
+    if (words.length > 0) {
+      console.log('Sample words:', words.slice(0, 3).map(w => w.text || w.word));
     }
 
     if (words.length === 0) {
-      throw new Error('No text detected in image. Try a clearer image.');
+      // More helpful error message
+      const hasText = result.data.text && result.data.text.trim().length > 0;
+      if (hasText) {
+        throw new Error(`OCR detected text but could not extract word positions. Text found: "${result.data.text.substring(0, 100)}..."`);
+      } else {
+        throw new Error('No text detected. This could mean:\n• The image is too blurry or low quality\n• The PDF contains only images, not text\n• Try a different image or PDF with clearer text');
+      }
     }
 
     ocrProgressText.textContent = 'Creating graph nodes...';
