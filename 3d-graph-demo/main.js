@@ -1,165 +1,141 @@
-import ForceGraph3D from '3d-force-graph';
+console.log('🚀 Graph Queen - Starting initialization...');
 
-console.log('🚀 3D Force Graph Demo - Starting initialization...');
+// Canvas setup for simple graph drawing
+const canvas = document.getElementById('graphCanvas');
+const ctx = canvas.getContext('2d');
 
-// Generate sample data
-function generateData(numNodes = 50) {
-  console.log(`📊 Generating graph data with ${numNodes} nodes...`);
-
-  const nodes = [];
-  const links = [];
-
-  // Create nodes
-  for (let i = 0; i < numNodes; i++) {
-    nodes.push({
-      id: i,
-      name: `Node ${i}`,
-      group: Math.floor(Math.random() * 5),
-      value: Math.random() * 10 + 1
-    });
-  }
-
-  // Create links (approximately 2-3 links per node)
-  const numLinks = Math.floor(numNodes * 2.5);
-  for (let i = 0; i < numLinks; i++) {
-    const source = Math.floor(Math.random() * numNodes);
-    const target = Math.floor(Math.random() * numNodes);
-    if (source !== target) {
-      links.push({
-        source,
-        target,
-        value: Math.random()
-      });
-    }
-  }
-
-  console.log(`✅ Generated ${nodes.length} nodes and ${links.length} links`);
-  return { nodes, links };
+function resizeCanvas() {
+  canvas.width = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
+  drawGraph();
 }
 
-// Update stats display
-function updateStats(data) {
-  document.getElementById('nodeCountDisplay').textContent = data.nodes.length;
-  document.getElementById('linkCountDisplay').textContent = data.links.length;
-  document.getElementById('statusDisplay').textContent = 'Active';
-  console.log(`📈 Stats updated - Nodes: ${data.nodes.length}, Links: ${data.links.length}`);
+// Draw simple graph lines (like in the mockup)
+function drawGraph() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const centerX = canvas.width / 2 - 200;
+  const centerY = canvas.height / 2 - 100;
+
+  // Draw intersecting lines to represent a simple graph
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 2;
+
+  // Line 1
+  ctx.beginPath();
+  ctx.moveTo(centerX - 100, centerY + 150);
+  ctx.lineTo(centerX + 50, centerY);
+  ctx.stroke();
+
+  // Line 2
+  ctx.beginPath();
+  ctx.moveTo(centerX - 50, centerY - 100);
+  ctx.lineTo(centerX + 100, centerY + 100);
+  ctx.stroke();
+
+  // Line 3
+  ctx.beginPath();
+  ctx.moveTo(centerX, centerY - 50);
+  ctx.lineTo(centerX + 150, centerY + 150);
+  ctx.stroke();
+
+  console.log('✅ Simple graph drawn');
 }
 
-// Initialize graph
-console.log('🎨 Initializing 3D Force Graph...');
-let isPaused = false;
+// Initialize canvas
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
 
-const graphData = generateData();
-const graph = ForceGraph3D(document.getElementById('graph'))
-  .graphData(graphData)
+// Draggable functionality
+let draggedElement = null;
+let offsetX = 0;
+let offsetY = 0;
 
-  // ✨ CLEAN STYLING
-  .backgroundColor('#FFFFFF')
+const draggablePanels = document.querySelectorAll('.draggable-panel');
 
-  // Nodes
-  .nodeLabel('name')
-  .nodeVal('value')
-  .nodeAutoColorBy('group')
-  .nodeOpacity(0.9)
-  .nodeResolution(16)
-
-  // Links
-  .linkColor(() => '#90CAF9')
-  .linkOpacity(0.3)
-  .linkWidth(1)
-
-  // Interactions
-  .onNodeClick((node, event) => {
-    console.log('🖱️ Node clicked:', node.name, node);
-    const panel = document.getElementById('infoPanel');
-    document.getElementById('nodeTitle').textContent = node.name;
-    document.getElementById('nodeDetails').textContent =
-      `Group: ${node.group}\nValue: ${node.value.toFixed(2)}\nID: ${node.id}`;
-    panel.classList.add('active');
-  })
-  .onNodeHover(node => {
-    document.body.style.cursor = node ? 'pointer' : 'default';
-    if (node) {
-      console.log('👆 Hovering node:', node.name);
+draggablePanels.forEach(panel => {
+  panel.addEventListener('mousedown', (e) => {
+    // Don't start dragging if clicking on a link or the file input trigger
+    if (e.target.tagName === 'A' || e.target.closest('#fileInput')) {
+      return;
     }
-  })
-  .onBackgroundClick(() => {
-    console.log('🖱️ Background clicked');
-    document.getElementById('infoPanel').classList.remove('active');
+
+    draggedElement = panel;
+    draggedElement.classList.add('dragging');
+
+    const rect = draggedElement.getBoundingClientRect();
+    offsetX = e.clientX - rect.left;
+    offsetY = e.clientY - rect.top;
+
+    console.log(`🖱️ Started dragging: ${panel.id}`);
   });
-
-console.log('✅ Graph initialized successfully');
-
-// Remove loading indicator
-setTimeout(() => {
-  const loading = document.getElementById('loading');
-  if (loading) loading.remove();
-  updateStats(graphData);
-}, 500);
-
-// Event listeners
-document.getElementById('bgColor').addEventListener('input', (e) => {
-  console.log('🎨 Background color changed to:', e.target.value);
-  graph.backgroundColor(e.target.value);
 });
 
-document.getElementById('nodeColor').addEventListener('input', (e) => {
-  console.log('🎨 Node color changed to:', e.target.value);
-  graph.nodeColor(() => e.target.value);
-});
+document.addEventListener('mousemove', (e) => {
+  if (draggedElement) {
+    const container = document.getElementById('container');
+    const containerRect = container.getBoundingClientRect();
 
-document.getElementById('linkOpacity').addEventListener('input', (e) => {
-  const value = e.target.value / 100;
-  console.log('🎨 Link opacity changed to:', value);
-  graph.linkOpacity(value);
-  document.getElementById('linkOpacityValue').textContent = e.target.value + '%';
-});
+    let newX = e.clientX - containerRect.left - offsetX;
+    let newY = e.clientY - containerRect.top - offsetY;
 
-document.getElementById('layout').addEventListener('change', (e) => {
-  const layout = e.target.value || null;
-  console.log('📐 Layout changed to:', layout || 'Force Directed');
-  graph.dagMode(layout);
-});
+    // Constrain to container bounds
+    newX = Math.max(0, Math.min(newX, containerRect.width - draggedElement.offsetWidth));
+    newY = Math.max(0, Math.min(newY, containerRect.height - draggedElement.offsetHeight));
 
-document.getElementById('zoomFitBtn').addEventListener('click', () => {
-  console.log('🔍 Fitting graph to view...');
-  graph.zoomToFit(400);
-});
-
-document.getElementById('regenerateBtn').addEventListener('click', () => {
-  const nodeCount = parseInt(document.getElementById('nodeCount').value) || 50;
-  console.log(`🔄 Regenerating graph with ${nodeCount} nodes...`);
-  const newData = generateData(nodeCount);
-  graph.graphData(newData);
-  updateStats(newData);
-  setTimeout(() => graph.zoomToFit(400), 100);
-});
-
-document.getElementById('pauseBtn').addEventListener('click', () => {
-  isPaused = !isPaused;
-  const btn = document.getElementById('pauseBtn');
-  if (isPaused) {
-    console.log('⏸️ Pausing animation...');
-    graph.pauseAnimation();
-    btn.textContent = '▶️ Resume Animation';
-    document.getElementById('statusDisplay').textContent = 'Paused';
-  } else {
-    console.log('▶️ Resuming animation...');
-    graph.resumeAnimation();
-    btn.textContent = '⏸️ Pause Animation';
-    document.getElementById('statusDisplay').textContent = 'Active';
+    draggedElement.style.left = newX + 'px';
+    draggedElement.style.top = newY + 'px';
+    draggedElement.style.right = 'auto';
   }
 });
 
-// Initial fit
-setTimeout(() => {
-  console.log('🔍 Initial zoom to fit...');
-  graph.zoomToFit(400);
-}, 500);
+document.addEventListener('mouseup', () => {
+  if (draggedElement) {
+    console.log(`✅ Stopped dragging: ${draggedElement.id}`);
+    draggedElement.classList.remove('dragging');
+    draggedElement = null;
+  }
+});
 
-// Expose graph globally for debugging
-window.graph = graph;
-window.generateData = generateData;
+// File upload handler
+const fileInput = document.getElementById('fileInput');
+fileInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (file) {
+    console.log(`📁 File selected: ${file.name}`);
 
-console.log('✨ Demo ready! Graph available as window.graph');
-console.log('💡 Use window.generateData(n) to generate new data');
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      console.log('📄 File contents:', event.target.result.substring(0, 200) + '...');
+      alert(`File uploaded: ${file.name}\nSize: ${file.size} bytes`);
+    };
+    reader.readAsText(file);
+  }
+});
+
+// Text box handler
+const textBox = document.getElementById('textBox');
+textBox.addEventListener('input', (e) => {
+  console.log(`✏️ Text input: "${e.target.value}"`);
+});
+
+textBox.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') {
+    console.log(`✅ Enter pressed with text: "${e.target.value}"`);
+    // You can add functionality here to create nodes/edges based on text input
+  }
+});
+
+// Slide panel click handler (can be used to show/hide additional content)
+const slidePanel = document.getElementById('slidePanel');
+slidePanel.addEventListener('click', (e) => {
+  if (e.target.tagName !== 'A') {
+    console.log('🎯 Slide panel clicked - could trigger slide-in functionality');
+    // Add slide-in panel functionality here if needed
+  }
+});
+
+console.log('✨ Graph Queen ready!');
+console.log('💡 Drag panels to reposition them');
+console.log('💡 Click upload button to select files');
+console.log('💡 Type in text box to add content');
