@@ -1,0 +1,20 @@
+{
+  "name": "3d-graph-demo",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview --host",
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.1",
+    "vite": "^5.0.0"
+  },
+  "dependencies": {
+    "3d-force-graph": "^1.79.0"
+  }
+}

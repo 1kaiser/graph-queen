@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive 3D Force Graph Editor</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #FAFAFA;
+      color: #333;
+      overflow: hidden;
+    }
+
+    #graph {
+      width: 100vw;
+      height: 100vh;
+      background: #FFFFFF;
+    }
+
+    /* Draggable Text Input Box */
+    .input-box {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      width: 320px;
+      background: #FFFFFF;
+      border: 1px solid #E0E0E0;
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      z-index: 1000;
+    }
+
+    .input-box-header {
+      padding: 10px 15px;
+      background: #F5F5F5;
+      border-bottom: 1px solid #E0E0E0;
+      cursor: move;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .input-box-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #666;
+    }
+
+    .drag-handle {
+      width: 20px;
+      height: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 3px;
+    }
+
+    .drag-handle span {
+      height: 2px;
+      background: #999;
+      border-radius: 1px;
+    }
+
+    .input-box-body {
+      padding: 15px;
+    }
+
+    .input-box input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #E0E0E0;
+      border-radius: 4px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .input-box input:focus {
+      border-color: #1976D2;
+    }
+
+    .help-text {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #999;
+    }
+
+    .selection-info {
+      margin-top: 10px;
+      padding: 8px;
+      background: #E3F2FD;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #1976D2;
+      display: none;
+    }
+
+    .selection-info.active {
+      display: block;
+    }
+
+    /* Upload Button */
+    .upload-btn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 12px 24px;
+      background: #1976D2;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      z-index: 1000;
+    }
+
+    .upload-btn:hover {
+      background: #1565C0;
+    }
+
+    .upload-btn:active {
+      transform: scale(0.98);
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    /* Status Bar */
+    .status-bar {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      padding: 10px 15px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid #E0E0E0;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #666;
+      z-index: 1000;
+      max-width: 400px;
+    }
+
+    .status-bar.success {
+      background: rgba(76, 175, 80, 0.1);
+      border-color: #4CAF50;
+      color: #2E7D32;
+    }
+
+    /* Edge Creation Mode Indicator */
+    .mode-indicator {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      padding: 10px 15px;
+      background: rgba(25, 118, 210, 0.9);
+      color: white;
+      border-radius: 4px;
+      font-size: 13px;
+      z-index: 1000;
+      display: none;
+    }
+
+    .mode-indicator.active {
+      display: block;
+    }
+
+    /* Context Menu */
+    .context-menu {
+      position: fixed;
+      background: white;
+      border: 1px solid #E0E0E0;
+      border-radius: 4px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+      z-index: 2000;
+      display: none;
+      min-width: 180px;
+    }
+
+    .context-menu.active {
+      display: block;
+    }
+
+    .context-menu-item {
+      padding: 10px 15px;
+      cursor: pointer;
+      font-size: 14px;
+      border-bottom: 1px solid #F5F5F5;
+    }
+
+    .context-menu-item:last-child {
+      border-bottom: none;
+    }
+
+    .context-menu-item:hover {
+      background: #F5F5F5;
+    }
+
+    .context-menu-separator {
+      height: 1px;
+      background: #E0E0E0;
+      margin: 5px 0;
+    }
+
+    /* Edit Modal */
+    .edit-modal {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      border: 1px solid #E0E0E0;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      padding: 20px;
+      z-index: 3000;
+      display: none;
+      min-width: 300px;
+    }
+
+    .edit-modal.active {
+      display: block;
+    }
+
+    .edit-modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.3);
+      z-index: 2999;
+      display: none;
+    }
+
+    .edit-modal-overlay.active {
+      display: block;
+    }
+
+    .edit-modal h3 {
+      margin-bottom: 15px;
+      font-size: 16px;
+      color: #333;
+    }
+
+    .edit-modal label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 13px;
+      color: #666;
+    }
+
+    .edit-modal input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #E0E0E0;
+      border-radius: 4px;
+      font-size: 14px;
+      margin-bottom: 15px;
+    }
+
+    .edit-modal-buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .edit-modal-buttons button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .btn-primary {
+      background: #1976D2;
+      color: white;
+    }
+
+    .btn-secondary {
+      background: #E0E0E0;
+      color: #666;
+    }
+
+    /* Hide default graph info */
+    .graph-info-msg {
+      display: none !important;
+    }
+  </style>
+  <script src="//cdn.jsdelivr.net/npm/3d-force-graph"></script>
+  <script src="//unpkg.com/three"></script>
+</head>
+<body>
+  <div id="graph"></div>
+
+  <!-- Draggable Input Box -->
+  <div class="input-box" id="inputBox">
+    <div class="input-box-header" id="inputBoxHeader">
+      <span class="input-box-title">Create Node</span>
+      <div class="drag-handle">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+    <div class="input-box-body">
+      <input type="text" id="nodeInput" placeholder="Enter node name and press Enter" />
+      <div class="help-text">
+        <strong>Tips:</strong><br>
+        • Type name and press Enter to create node<br>
+        • Select nodes first to auto-connect<br>
+        • Right-click nodes for options<br>
+        • Hold Ctrl + Click for multiple selection<br>
+        • Ctrl+S to save, Ctrl+Z to undo
+      </div>
+      <div class="selection-info" id="selectionInfo">
+        <strong>Selected:</strong> <span id="selectedCount">0</span> node(s)
+      </div>
+    </div>
+  </div>
+
+  <!-- Upload Button -->
+  <label for="fileUpload" class="upload-btn">
+    📁 Load Graph
+  </label>
+  <input type="file" id="fileUpload" accept=".mmd,.txt,.json" />
+
+  <!-- Status Bar -->
+  <div class="status-bar" id="statusBar">
+    Ready
+  </div>
+
+  <!-- Mode Indicator -->
+  <div class="mode-indicator" id="modeIndicator">
+    Edge Creation Mode: Click source, then target node
+  </div>
+
+  <!-- Context Menu -->
+  <div class="context-menu" id="contextMenu">
+    <div class="context-menu-item" onclick="editNode()">✏️ Edit Node</div>
+    <div class="context-menu-item" onclick="deleteNode()">🗑️ Delete Node</div>
+    <div class="context-menu-separator"></div>
+    <div class="context-menu-item" onclick="startEdgeCreation()">🔗 Create Edge From Here</div>
+    <div class="context-menu-item" onclick="editEdges()">📝 Edit Edges</div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div class="edit-modal-overlay" id="editModalOverlay" onclick="closeEditModal()"></div>
+  <div class="edit-modal" id="editModal">
+    <h3 id="editModalTitle">Edit Node</h3>
+    <label for="editInput">Name:</label>
+    <input type="text" id="editInput" />
+    <div class="edit-modal-buttons">
+      <button class="btn-secondary" onclick="closeEditModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveEdit()">Save</button>
+    </div>
+  </div>
+
+  <script>
+    // ==================== STATE MANAGEMENT ====================
+    let graphData = { nodes: [], links: [] };
+    let selectedNodes = new Set();
+    let history = [];
+    let historyIndex = -1;
+    let nodeIdCounter = 0;
+    let linkIdCounter = 0;
+    let contextMenuTarget = null;
+    let edgeCreationMode = false;
+    let edgeCreationSource = null;
+    let editTarget = null;
+
+    // ==================== GRAPH INITIALIZATION ====================
+    const Graph = new ForceGraph3D(document.getElementById('graph'))
+      .backgroundColor('#FFFFFF')
+      .nodeLabel('name')
+      .nodeVal(1)
+      .nodeResolution(16)
+      .nodeColor(node => {
+        if (selectedNodes.has(node.id)) {
+          return '#FF9800'; // Orange for selected
+        }
+        return node.color || '#1976D2';
+      })
+      .nodeOpacity(0.9)
+      .linkColor(() => '#90CAF9')
+      .linkOpacity(0.4)
+      .linkWidth(2)
+      .linkDirectionalArrowLength(6)
+      .linkDirectionalArrowRelPos(1)
+      .linkLabel(link => link.label || '')
+      .onNodeClick(handleNodeClick)
+      .onNodeRightClick(handleNodeRightClick)
+      .onNodeHover(node => {
+        document.body.style.cursor = node ? 'pointer' : 'default';
+      })
+      .onBackgroundClick(handleBackgroundClick)
+      .onBackgroundRightClick(handleBackgroundRightClick);
+
+    // Use text sprites for nodes
+    Graph.nodeThreeObject(node => {
+      const sprite = new SpriteText(node.name);
+      sprite.color = selectedNodes.has(node.id) ? '#FF9800' : (node.color || '#1976D2');
+      sprite.textHeight = 8;
+      return sprite;
+    });
+
+    // Initial sample data
+    initializeGraph();
+
+    // ==================== DRAG FUNCTIONALITY ====================
+    let isDragging = false;
+    let dragOffsetX = 0;
+    let dragOffsetY = 0;
+
+    const inputBox = document.getElementById('inputBox');
+    const inputBoxHeader = document.getElementById('inputBoxHeader');
+
+    inputBoxHeader.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      dragOffsetX = e.clientX - inputBox.offsetLeft;
+      dragOffsetY = e.clientY - inputBox.offsetTop;
+      inputBox.style.cursor = 'grabbing';
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (isDragging) {
+        inputBox.style.left = (e.clientX - dragOffsetX) + 'px';
+        inputBox.style.top = (e.clientY - dragOffsetY) + 'px';
+        inputBox.style.right = 'auto';
+      }
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        inputBox.style.cursor = 'move';
+      }
+    });
+
+    // ==================== NODE CREATION ====================
+    const nodeInput = document.getElementById('nodeInput');
+    nodeInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && nodeInput.value.trim()) {
+        createNode(nodeInput.value.trim());
+        nodeInput.value = '';
+      }
+    });
+
+    function createNode(name) {
+      const newNode = {
+        id: `node_${nodeIdCounter++}`,
+        name: name,
+        color: '#1976D2'
+      };
+
+      // Add links to selected nodes
+      const newLinks = [];
+      if (selectedNodes.size > 0) {
+        selectedNodes.forEach(selectedId => {
+          newLinks.push({
+            id: `link_${linkIdCounter++}`,
+            source: selectedId,
+            target: newNode.id,
+            label: ''
+          });
+        });
+      }
+
+      graphData.nodes.push(newNode);
+      graphData.links.push(...newLinks);
+
+      updateGraph();
+      saveHistory();
+      showStatus(`Created node: ${name}`);
+    }
+
+    // ==================== NODE SELECTION ====================
+    function handleNodeClick(node, event) {
+      if (edgeCreationMode) {
+        if (!edgeCreationSource) {
+          edgeCreationSource = node;
+          showStatus(`Edge source selected: ${node.name}. Click target node.`);
+        } else {
+          createEdge(edgeCreationSource, node);
+          edgeCreationSource = null;
+          edgeCreationMode = false;
+          document.getElementById('modeIndicator').classList.remove('active');
+        }
+        return;
+      }
+
+      if (event.ctrlKey || event.metaKey) {
+        // Multi-select
+        if (selectedNodes.has(node.id)) {
+          selectedNodes.delete(node.id);
+        } else {
+          selectedNodes.add(node.id);
+        }
+      } else {
+        // Single select
+        selectedNodes.clear();
+        selectedNodes.add(node.id);
+      }
+
+      updateSelectionUI();
+      Graph.nodeColor(Graph.nodeColor()); // Force re-render
+    }
+
+    function handleBackgroundClick() {
+      if (edgeCreationMode) {
+        edgeCreationMode = false;
+        edgeCreationSource = null;
+        document.getElementById('modeIndicator').classList.remove('active');
+        showStatus('Edge creation cancelled');
+      } else {
+        selectedNodes.clear();
+        updateSelectionUI();
+        Graph.nodeColor(Graph.nodeColor());
+      }
+    }
+
+    function updateSelectionUI() {
+      const selectionInfo = document.getElementById('selectionInfo');
+      const selectedCount = document.getElementById('selectedCount');
+
+      if (selectedNodes.size > 0) {
+        selectionInfo.classList.add('active');
+        selectedCount.textContent = selectedNodes.size;
+      } else {
+        selectionInfo.classList.remove('active');
+      }
+    }
+
+    // ==================== CONTEXT MENU ====================
+    function handleNodeRightClick(node, event) {
+      event.preventDefault();
+      contextMenuTarget = node;
+
+      const menu = document.getElementById('contextMenu');
+      menu.style.left = event.clientX + 'px';
+      menu.style.top = event.clientY + 'px';
+      menu.classList.add('active');
+    }
+
+    function handleBackgroundRightClick(event) {
+      event.preventDefault();
+      closeContextMenu();
+    }
+
+    document.addEventListener('click', () => {
+      closeContextMenu();
+    });
+
+    function closeContextMenu() {
+      document.getElementById('contextMenu').classList.remove('active');
+      contextMenuTarget = null;
+    }
+
+    // ==================== NODE EDITING ====================
+    function editNode() {
+      if (!contextMenuTarget) return;
+
+      editTarget = contextMenuTarget;
+      document.getElementById('editModalTitle').textContent = 'Edit Node';
+      document.getElementById('editInput').value = contextMenuTarget.name;
+      document.getElementById('editModal').classList.add('active');
+      document.getElementById('editModalOverlay').classList.add('active');
+      document.getElementById('editInput').focus();
+
+      closeContextMenu();
+    }
+
+    function deleteNode() {
+      if (!contextMenuTarget) return;
+
+      const nodeId = contextMenuTarget.id;
+
+      // Remove node
+      graphData.nodes = graphData.nodes.filter(n => n.id !== nodeId);
+
+      // Remove associated links
+      graphData.links = graphData.links.filter(l =>
+        l.source.id !== nodeId && l.target.id !== nodeId
+      );
+
+      selectedNodes.delete(nodeId);
+      updateGraph();
+      saveHistory();
+      showStatus(`Deleted node: ${contextMenuTarget.name}`);
+
+      closeContextMenu();
+    }
+
+    function closeEditModal() {
+      document.getElementById('editModal').classList.remove('active');
+      document.getElementById('editModalOverlay').classList.remove('active');
+      editTarget = null;
+    }
+
+    function saveEdit() {
+      if (!editTarget) return;
+
+      const newName = document.getElementById('editInput').value.trim();
+      if (newName) {
+        editTarget.name = newName;
+        updateGraph();
+        saveHistory();
+        showStatus(`Updated node: ${newName}`);
+      }
+
+      closeEditModal();
+    }
+
+    // ==================== EDGE CREATION ====================
+    function startEdgeCreation() {
+      if (!contextMenuTarget) return;
+
+      edgeCreationMode = true;
+      edgeCreationSource = contextMenuTarget;
+      document.getElementById('modeIndicator').classList.add('active');
+      showStatus(`Edge source: ${contextMenuTarget.name}. Click target node.`);
+
+      closeContextMenu();
+    }
+
+    function createEdge(source, target) {
+      if (source.id === target.id) {
+        showStatus('Cannot create self-loop');
+        return;
+      }
+
+      // Check if edge already exists
+      const exists = graphData.links.some(l =>
+        (l.source.id === source.id && l.target.id === target.id) ||
+        (l.source.id === target.id && l.target.id === source.id)
+      );
+
+      if (exists) {
+        showStatus('Edge already exists');
+        return;
+      }
+
+      const newLink = {
+        id: `link_${linkIdCounter++}`,
+        source: source.id,
+        target: target.id,
+        label: ''
+      };
+
+      graphData.links.push(newLink);
+      updateGraph();
+      saveHistory();
+      showStatus(`Created edge: ${source.name} → ${target.name}`);
+    }
+
+    function editEdges() {
+      if (!contextMenuTarget) return;
+
+      const nodeId = contextMenuTarget.id;
+      const edges = graphData.links.filter(l =>
+        l.source.id === nodeId || l.target.id === nodeId
+      );
+
+      if (edges.length === 0) {
+        showStatus('No edges connected to this node');
+        return;
+      }
+
+      // For now, prompt for edge label
+      const edge = edges[0];
+      const label = prompt('Enter edge label:', edge.label || '');
+      if (label !== null) {
+        edge.label = label;
+        updateGraph();
+        saveHistory();
+        showStatus('Edge label updated');
+      }
+
+      closeContextMenu();
+    }
+
+    // ==================== GRAPH UPDATE ====================
+    function updateGraph() {
+      Graph.graphData(graphData);
+      Graph.nodeColor(Graph.nodeColor()); // Force color update
+    }
+
+    // ==================== HISTORY (UNDO/REDO) ====================
+    function saveHistory() {
+      const state = JSON.stringify({
+        nodes: graphData.nodes.map(n => ({ ...n })),
+        links: graphData.links.map(l => ({
+          id: l.id,
+          source: l.source.id || l.source,
+          target: l.target.id || l.target,
+          label: l.label
+        }))
+      });
+
+      // Remove future history if we're not at the end
+      if (historyIndex < history.length - 1) {
+        history = history.slice(0, historyIndex + 1);
+      }
+
+      history.push(state);
+      historyIndex++;
+
+      // Limit history size
+      if (history.length > 50) {
+        history.shift();
+        historyIndex--;
+      }
+    }
+
+    function undo() {
+      if (historyIndex > 0) {
+        historyIndex--;
+        restoreState(history[historyIndex]);
+        showStatus('Undo');
+      }
+    }
+
+    function redo() {
+      if (historyIndex < history.length - 1) {
+        historyIndex++;
+        restoreState(history[historyIndex]);
+        showStatus('Redo');
+      }
+    }
+
+    function restoreState(stateStr) {
+      const state = JSON.parse(stateStr);
+      graphData = state;
+      updateGraph();
+    }
+
+    // ==================== SAVE/LOAD (MERMAID FORMAT) ====================
+    function saveGraph() {
+      const mermaidCode = generateMermaidCode();
+      const filename = `graph_${getDateTime()}.mmd`;
+
+      const blob = new Blob([mermaidCode], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      showStatus(`Saved: ${filename}`, true);
+    }
+
+    function generateMermaidCode() {
+      let code = 'graph TD\n';
+
+      // Add nodes
+      graphData.nodes.forEach(node => {
+        const id = node.id.replace(/[^a-zA-Z0-9]/g, '_');
+        const name = node.name.replace(/"/g, '\\"');
+        code += `    ${id}["${name}"]\n`;
+      });
+
+      code += '\n';
+
+      // Add links
+      graphData.links.forEach(link => {
+        const sourceId = (link.source.id || link.source).replace(/[^a-zA-Z0-9]/g, '_');
+        const targetId = (link.target.id || link.target).replace(/[^a-zA-Z0-9]/g, '_');
+        const label = link.label ? `|${link.label}|` : '';
+        code += `    ${sourceId} -->${label} ${targetId}\n`;
+      });
+
+      return code;
+    }
+
+    function getDateTime() {
+      const now = new Date();
+      return now.toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    }
+
+    // ==================== FILE UPLOAD ====================
+    document.getElementById('fileUpload').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const content = event.target.result;
+
+          if (file.name.endsWith('.mmd') || file.name.endsWith('.txt')) {
+            parseMermaidCode(content);
+          } else if (file.name.endsWith('.json')) {
+            graphData = JSON.parse(content);
+            updateGraph();
+          }
+
+          saveHistory();
+          showStatus(`Loaded: ${file.name}`, true);
+        } catch (error) {
+          showStatus(`Error loading file: ${error.message}`);
+        }
+      };
+      reader.readAsText(file);
+
+      // Reset file input
+      e.target.value = '';
+    });
+
+    function parseMermaidCode(code) {
+      const nodes = new Map();
+      const links = [];
+
+      const lines = code.split('\n');
+
+      lines.forEach(line => {
+        line = line.trim();
+
+        // Parse node definitions: id["name"] or id[name]
+        const nodeMatch = line.match(/(\w+)\[["']?([^"'\]]+)["']?\]/);
+        if (nodeMatch) {
+          const [, id, name] = nodeMatch;
+          if (!nodes.has(id)) {
+            nodes.set(id, {
+              id: id,
+              name: name,
+              color: '#1976D2'
+            });
+          }
+        }
+
+        // Parse link definitions: source --> target or source -->|label| target
+        const linkMatch = line.match(/(\w+)\s*-->\s*(?:\|([^|]+)\|)?\s*(\w+)/);
+        if (linkMatch) {
+          const [, source, label, target] = linkMatch;
+
+          // Create nodes if they don't exist
+          if (!nodes.has(source)) {
+            nodes.set(source, { id: source, name: source, color: '#1976D2' });
+          }
+          if (!nodes.has(target)) {
+            nodes.set(target, { id: target, name: target, color: '#1976D2' });
+          }
+
+          links.push({
+            id: `link_${linkIdCounter++}`,
+            source: source,
+            target: target,
+            label: label || ''
+          });
+        }
+      });
+
+      graphData = {
+        nodes: Array.from(nodes.values()),
+        links: links
+      };
+
+      nodeIdCounter = graphData.nodes.length;
+      updateGraph();
+    }
+
+    // ==================== KEYBOARD SHORTCUTS ====================
+    document.addEventListener('keydown', (e) => {
+      // Ctrl+Z / Cmd+Z: Undo
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'z') {
+        e.preventDefault();
+        undo();
+      }
+
+      // Ctrl+Shift+Z / Cmd+Shift+Z: Redo
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'z') {
+        e.preventDefault();
+        redo();
+      }
+
+      // Ctrl+S / Cmd+S: Save
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        saveGraph();
+      }
+
+      // Delete: Delete selected nodes
+      if (e.key === 'Delete' && selectedNodes.size > 0) {
+        selectedNodes.forEach(nodeId => {
+          graphData.nodes = graphData.nodes.filter(n => n.id !== nodeId);
+          graphData.links = graphData.links.filter(l =>
+            (l.source.id || l.source) !== nodeId &&
+            (l.target.id || l.target) !== nodeId
+          );
+        });
+        selectedNodes.clear();
+        updateGraph();
+        saveHistory();
+        showStatus('Deleted selected nodes');
+      }
+
+      // Escape: Clear selection / Cancel edge creation
+      if (e.key === 'Escape') {
+        selectedNodes.clear();
+        updateSelectionUI();
+        Graph.nodeColor(Graph.nodeColor());
+
+        if (edgeCreationMode) {
+          edgeCreationMode = false;
+          edgeCreationSource = null;
+          document.getElementById('modeIndicator').classList.remove('active');
+        }
+      }
+    });
+
+    // ==================== STATUS BAR ====================
+    let statusTimeout;
+    function showStatus(message, isSuccess = false) {
+      const statusBar = document.getElementById('statusBar');
+      statusBar.textContent = message;
+
+      if (isSuccess) {
+        statusBar.classList.add('success');
+      } else {
+        statusBar.classList.remove('success');
+      }
+
+      clearTimeout(statusTimeout);
+      statusTimeout = setTimeout(() => {
+        statusBar.textContent = 'Ready';
+        statusBar.classList.remove('success');
+      }, 3000);
+    }
+
+    // ==================== INITIALIZATION ====================
+    function initializeGraph() {
+      graphData = {
+        nodes: [
+          { id: 'node_0', name: 'Start', color: '#4CAF50' },
+          { id: 'node_1', name: 'Process A', color: '#1976D2' },
+          { id: 'node_2', name: 'Process B', color: '#1976D2' },
+          { id: 'node_3', name: 'End', color: '#F44336' }
+        ],
+        links: [
+          { id: 'link_0', source: 'node_0', target: 'node_1', label: 'step 1' },
+          { id: 'link_1', source: 'node_1', target: 'node_2', label: 'step 2' },
+          { id: 'link_2', source: 'node_2', target: 'node_3', label: 'step 3' }
+        ]
+      };
+
+      nodeIdCounter = 4;
+      linkIdCounter = 3;
+
+      updateGraph();
+      saveHistory();
+
+      // Fit to view after a short delay
+      setTimeout(() => {
+        Graph.zoomToFit(400);
+      }, 100);
+    }
+
+    // SpriteText implementation
+    class SpriteText extends THREE.Sprite {
+      constructor(text = '', textHeight = 10, color = 'rgba(255, 255, 255, 1)') {
+        super(new THREE.SpriteMaterial());
+        this._text = text;
+        this._textHeight = textHeight;
+        this._color = color;
+        this._backgroundColor = false;
+        this._padding = 0;
+        this._borderWidth = 0;
+        this._borderRadius = 0;
+        this._borderColor = 'white';
+        this._strokeWidth = 0;
+        this._strokeColor = 'white';
+        this._fontFace = 'Arial';
+        this._fontSize = 90;
+        this._fontWeight = 'normal';
+        this._canvas = document.createElement('canvas');
+        this._genCanvas();
+      }
+
+      get text() { return this._text; }
+      set text(text) { this._text = text; this._genCanvas(); }
+      get textHeight() { return this._textHeight; }
+      set textHeight(textHeight) { this._textHeight = textHeight; this._genCanvas(); }
+      get color() { return this._color; }
+      set color(color) { this._color = color; this._genCanvas(); }
+      get backgroundColor() { return this._backgroundColor; }
+      set backgroundColor(color) { this._backgroundColor = color; this._genCanvas(); }
+      get padding() { return this._padding; }
+      set padding(padding) { this._padding = padding; this._genCanvas(); }
+      get borderWidth() { return this._borderWidth; }
+      set borderWidth(borderWidth) { this._borderWidth = borderWidth; this._genCanvas(); }
+      get borderRadius() { return this._borderRadius; }
+      set borderRadius(borderRadius) { this._borderRadius = borderRadius; this._genCanvas(); }
+      get borderColor() { return this._borderColor; }
+      set borderColor(borderColor) { this._borderColor = borderColor; this._genCanvas(); }
+      get fontFace() { return this._fontFace; }
+      set fontFace(fontFace) { this._fontFace = fontFace; this._genCanvas(); }
+      get fontSize() { return this._fontSize; }
+      set fontSize(fontSize) { this._fontSize = fontSize; this._genCanvas(); }
+      get fontWeight() { return this._fontWeight; }
+      set fontWeight(fontWeight) { this._fontWeight = fontWeight; this._genCanvas(); }
+      get strokeWidth() { return this._strokeWidth; }
+      set strokeWidth(strokeWidth) { this._strokeWidth = strokeWidth; this._genCanvas(); }
+      get strokeColor() { return this._strokeColor; }
+      set strokeColor(strokeColor) { this._strokeColor = strokeColor; this._genCanvas(); }
+
+      _genCanvas() {
+        const canvas = this._canvas;
+        const ctx = canvas.getContext('2d');
+        const font = `${this._fontWeight} ${this._fontSize}px ${this._fontFace}`;
+        ctx.font = font;
+        const textWidth = ctx.measureText(this._text).width;
+        const margin = this._padding * 2 + this._borderWidth * 2;
+        canvas.width = textWidth + margin;
+        canvas.height = this._fontSize + margin;
+
+        ctx.font = font;
+        ctx.fillStyle = this._backgroundColor || 'transparent';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        if (this._borderWidth) {
+          ctx.strokeStyle = this._borderColor;
+          ctx.lineWidth = this._borderWidth * 2;
+          const r = this._borderRadius;
+          if (r) {
+            ctx.beginPath();
+            ctx.moveTo(r, 0);
+            ctx.lineTo(canvas.width - r, 0);
+            ctx.quadraticCurveTo(canvas.width, 0, canvas.width, r);
+            ctx.lineTo(canvas.width, canvas.height - r);
+            ctx.quadraticCurveTo(canvas.width, canvas.height, canvas.width - r, canvas.height);
+            ctx.lineTo(r, canvas.height);
+            ctx.quadraticCurveTo(0, canvas.height, 0, canvas.height - r);
+            ctx.lineTo(0, r);
+            ctx.quadraticCurveTo(0, 0, r, 0);
+            ctx.closePath();
+            ctx.stroke();
+          } else {
+            ctx.strokeRect(0, 0, canvas.width, canvas.height);
+          }
+        }
+
+        ctx.fillStyle = this._color;
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'center';
+
+        if (this._strokeWidth) {
+          ctx.strokeStyle = this._strokeColor;
+          ctx.lineWidth = this._strokeWidth * 2;
+          ctx.strokeText(this._text, canvas.width / 2, canvas.height / 2);
+        }
+
+        ctx.fillText(this._text, canvas.width / 2, canvas.height / 2);
+
+        const texture = new THREE.Texture(canvas);
+        texture.needsUpdate = true;
+        this.material.map = texture;
+        this.material.needsUpdate = true;
+
+        const yScale = this._textHeight * canvas.height / canvas.width;
+        this.scale.set(this._textHeight, yScale, 0);
+      }
+
+      clone() {
+        return new this.constructor(this._text, this._textHeight, this._color).copy(this);
+      }
+
+      copy(source) {
+        super.copy(source);
+        this.color = source.color;
+        this.backgroundColor = source.backgroundColor;
+        this.padding = source.padding;
+        this.borderWidth = source.borderWidth;
+        this.borderColor = source.borderColor;
+        this.fontFace = source.fontFace;
+        this.fontSize = source.fontSize;
+        this.fontWeight = source.fontWeight;
+        this.strokeWidth = source.strokeWidth;
+        this.strokeColor = source.strokeColor;
+        return this;
+      }
+    }
+
+    showStatus('Ready - Start creating your graph!');
+  </script>
+</body>
+</html>
