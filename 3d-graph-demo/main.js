@@ -1597,14 +1597,18 @@ function cleanupDragConnection() {
 // Initialize drag-to-connect
 enableDragToConnect();
 
-// ========== BASIL.JS + P5.JS DEMO ==========
+// ========== BASIL.JS TEXT GRAPH DEMO ==========
 
 /**
- * Interactive generative art demo inspired by basil.js drawing concepts
- * Creates organic, flowing shapes with randomness and movement
+ * Classic basil.js example: "01_connecting_all_words_with_lines"
+ * Connects every word from left text block to every word in right text block
+ * Based on: https://basiljs.ch/gallery/
  */
 let p5Instance = null;
-let particles = [];
+let words1 = [];
+let words2 = [];
+let animating = true;
+let animOffset = 0;
 
 window.initializeP5Demo = function() {
   // Only initialize when Settings panel is opened
@@ -1612,99 +1616,171 @@ window.initializeP5Demo = function() {
 
   const sketch = (p) => {
     p.setup = function() {
-      const canvas = p.createCanvas(600, 400);
+      const canvas = p.createCanvas(800, 400);
       canvas.parent('p5-demo-container');
-      p.background(248, 250, 252); // Match our #F8FAFC background
-      p.noStroke();
+      p.textAlign(p.CENTER, p.CENTER);
+      p.textSize(16);
+      p.textFont('helvetica');
+
+      // Initial word processing
+      updateWords(p);
     };
 
     p.draw = function() {
-      // Fade effect for organic trails
-      p.fill(248, 250, 252, 10);
-      p.rect(0, 0, p.width, p.height);
+      p.background(248, 250, 252); // Match our #F8FAFC background
 
-      // Update and draw particles
-      for (let i = particles.length - 1; i >= 0; i--) {
-        const particle = particles[i];
-        particle.update();
-        particle.display(p);
+      if (animating) {
+        animOffset += 0.5;
+      }
 
-        if (particle.isDead()) {
-          particles.splice(i, 1);
+      // Draw left text block words
+      p.fill(79, 70, 229); // Indigo #4F46E5
+      p.noStroke();
+      words1.forEach(word => {
+        p.text(word.text, word.x, word.y);
+
+        // Small circle behind text
+        p.fill(79, 70, 229, 50);
+        p.ellipse(word.x, word.y, word.width + 10, 28);
+        p.fill(79, 70, 229);
+      });
+
+      // Draw right text block words
+      p.fill(139, 92, 246); // Purple #8B5CF6
+      words2.forEach(word => {
+        p.text(word.text, word.x, word.y);
+
+        // Small circle behind text
+        p.fill(139, 92, 246, 50);
+        p.ellipse(word.x, word.y, word.width + 10, 28);
+        p.fill(139, 92, 246);
+      });
+
+      // Draw connecting lines (basil.js style)
+      p.strokeWeight(0.5);
+
+      for (let i = 0; i < words1.length; i++) {
+        for (let j = 0; j < words2.length; j++) {
+          const w1 = words1[i];
+          const w2 = words2[j];
+
+          // Animated opacity based on connection index
+          const connectionIndex = i * words2.length + j;
+          const opacity = animating ?
+            p.map(p.sin((animOffset + connectionIndex * 10) * 0.02), -1, 1, 20, 120) : 80;
+
+          // Color gradient from indigo to purple
+          const t = j / Math.max(1, words2.length - 1);
+          const r = p.lerp(79, 139, t);
+          const g = p.lerp(70, 92, t);
+          const b = p.lerp(229, 246, t);
+
+          p.stroke(r, g, b, opacity);
+          p.line(w1.x, w1.y, w2.x, w2.y);
         }
       }
 
-      // Create particles when mouse is dragged
-      if (p.mouseIsPressed && p.mouseX >= 0 && p.mouseX <= p.width &&
-          p.mouseY >= 0 && p.mouseY <= p.height) {
-        const velocity = p.dist(p.mouseX, p.mouseY, p.pmouseX, p.pmouseY);
-        for (let i = 0; i < 3; i++) {
-          particles.push(new Particle(
-            p.mouseX + p.random(-5, 5),
-            p.mouseY + p.random(-5, 5),
-            velocity
-          ));
-        }
-      }
+      // Draw connection count
+      p.noStroke();
+      p.fill(99, 102, 241, 200);
+      p.rect(10, 10, 200, 30, 5);
+      p.fill(255);
+      p.textAlign(p.LEFT, p.CENTER);
+      p.textSize(14);
+      p.text(`Connections: ${words1.length * words2.length}`, 20, 25);
+      p.textAlign(p.CENTER, p.CENTER);
+      p.textSize(16);
     };
 
-    // Particle class - basil.js inspired organic movement
-    class Particle {
-      constructor(x, y, velocity) {
-        this.x = x;
-        this.y = y;
-        this.vx = p.random(-velocity * 0.2, velocity * 0.2);
-        this.vy = p.random(-velocity * 0.2, velocity * 0.2);
-        this.life = 255;
-        this.size = p.random(5, 20);
-        // Modern color palette
-        const colors = [
-          [99, 102, 241],   // Indigo
-          [139, 92, 246],   // Purple
-          [245, 158, 11],   // Amber
-          [239, 68, 68]     // Red
-        ];
-        this.color = p.random(colors);
-      }
+    function updateWords(p) {
+      const text1 = document.getElementById('basilText1')?.value || 'Hello World';
+      const text2 = document.getElementById('basilText2')?.value || 'Graph Networks';
 
-      update() {
-        this.x += this.vx;
-        this.y += this.vy;
-        this.vx *= 0.95; // Friction
-        this.vy *= 0.95;
-        this.life -= 2;
-        this.size *= 0.98;
-      }
+      // Extract words (split by whitespace and newlines)
+      const extractWords = (text) => {
+        return text.split(/\s+/).filter(w => w.trim().length > 0);
+      };
 
-      display(p) {
-        p.fill(this.color[0], this.color[1], this.color[2], this.life);
-        p.ellipse(this.x, this.y, this.size, this.size);
+      const leftWords = extractWords(text1);
+      const rightWords = extractWords(text2);
 
-        // Add glow effect
-        p.fill(this.color[0], this.color[1], this.color[2], this.life * 0.3);
-        p.ellipse(this.x, this.y, this.size * 1.5, this.size * 1.5);
-      }
+      // Layout words in columns
+      const leftX = 150;
+      const rightX = 650;
+      const startY = 100;
+      const verticalSpacing = 40;
 
-      isDead() {
-        return this.life <= 0 || this.size < 1;
-      }
+      words1 = leftWords.map((text, i) => ({
+        text: text,
+        x: leftX,
+        y: startY + i * verticalSpacing,
+        width: p.textWidth(text)
+      }));
+
+      words2 = rightWords.map((text, i) => ({
+        text: text,
+        x: rightX,
+        y: startY + i * verticalSpacing,
+        width: p.textWidth(text)
+      }));
     }
+
+    // Expose update function to global scope via sketch reference
+    sketch.updateWords = updateWords;
   };
 
   p5Instance = new p5(sketch);
-  console.log('🎨 p5.js demo initialized');
+  console.log('🎨 Basil.js text graph demo initialized');
 };
 
-window.resetP5Demo = function() {
+window.updateBasilDemo = function() {
   if (!p5Instance) return;
-  particles = [];
-  p5Instance.background(248, 250, 252);
-  console.log('🔄 p5.js canvas cleared');
+
+  // Re-process words from textareas
+  const text1 = document.getElementById('basilText1')?.value || '';
+  const text2 = document.getElementById('basilText2')?.value || '';
+
+  const extractWords = (text) => {
+    return text.split(/\s+/).filter(w => w.trim().length > 0);
+  };
+
+  const leftWords = extractWords(text1);
+  const rightWords = extractWords(text2);
+
+  const leftX = 150;
+  const rightX = 650;
+  const startY = 100;
+  const verticalSpacing = 40;
+
+  words1 = leftWords.map((text, i) => ({
+    text: text,
+    x: leftX,
+    y: startY + i * verticalSpacing,
+    width: p5Instance.textWidth(text)
+  }));
+
+  words2 = rightWords.map((text, i) => ({
+    text: text,
+    x: rightX,
+    y: startY + i * verticalSpacing,
+    width: p5Instance.textWidth(text)
+  }));
+
+  console.log(`🔄 Updated: ${words1.length} ↔ ${words2.length} = ${words1.length * words2.length} connections`);
+};
+
+window.toggleBasilAnimation = function() {
+  animating = !animating;
+  const btn = document.getElementById('animToggleBtn');
+  if (btn) {
+    btn.textContent = animating ? '⏸️ Pause Animation' : '▶️ Play Animation';
+  }
+  console.log(`Animation: ${animating ? 'ON' : 'OFF'}`);
 };
 
 window.saveP5Canvas = function() {
   if (!p5Instance) return;
-  p5Instance.saveCanvas('basil-demo', 'png');
+  p5Instance.saveCanvas('basil-text-graph', 'png');
   console.log('💾 Canvas saved');
 };
 

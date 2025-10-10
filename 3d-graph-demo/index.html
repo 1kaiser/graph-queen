@@ -635,16 +635,34 @@
         <li><strong>PDF Support:</strong> First page extraction via PDF.js</li>
       </ul>
 
-      <h2>🎨 Basil.js + p5.js Demo</h2>
-      <p style="margin-bottom: 15px;">Interactive generative art demo inspired by basil.js drawing concepts. Click and drag in the canvas below to create organic shapes!</p>
+      <h2>🎨 Basil.js Text Graph Demo</h2>
+      <p style="margin-bottom: 15px;">
+        Classic basil.js example: "Connecting All Words With Lines" - Type text in the boxes below and watch as every word from the left connects to every word on the right, creating an intricate network visualization!
+      </p>
 
-      <div style="border: 3px solid #333; border-radius: 8px; overflow: hidden; margin-bottom: 20px;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+        <div>
+          <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #4F46E5;">Left Text Block:</label>
+          <textarea id="basilText1" rows="4" style="width: 100%; padding: 10px; border: 2px solid #333; border-radius: 8px; font-family: inherit; font-size: 14px;" placeholder="Type words here...">Hello World
+Creative Coding</textarea>
+        </div>
+        <div>
+          <label style="display: block; font-weight: bold; margin-bottom: 5px; color: #8B5CF6;">Right Text Block:</label>
+          <textarea id="basilText2" rows="4" style="width: 100%; padding: 10px; border: 2px solid #333; border-radius: 8px; font-family: inherit; font-size: 14px;" placeholder="Type words here...">Graph Networks
+Visual Design</textarea>
+        </div>
+      </div>
+
+      <div style="border: 3px solid #333; border-radius: 8px; overflow: hidden; margin-bottom: 20px; background: #F8FAFC;">
         <div id="p5-demo-container"></div>
       </div>
 
       <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-        <button onclick="resetP5Demo()" style="flex: 1; padding: 12px; background: #6366F1; color: white; border: 2px solid #333; border-radius: 8px; cursor: pointer; font-weight: bold;">
-          🔄 Clear Canvas
+        <button onclick="updateBasilDemo()" style="flex: 1; padding: 12px; background: #6366F1; color: white; border: 2px solid #333; border-radius: 8px; cursor: pointer; font-weight: bold;">
+          🔄 Update Graph
+        </button>
+        <button onclick="toggleBasilAnimation()" id="animToggleBtn" style="flex: 1; padding: 12px; background: #8B5CF6; color: white; border: 2px solid #333; border-radius: 8px; cursor: pointer; font-weight: bold;">
+          ⏸️ Pause Animation
         </button>
         <button onclick="saveP5Canvas()" style="flex: 1; padding: 12px; background: #F59E0B; color: white; border: 2px solid #333; border-radius: 8px; cursor: pointer; font-weight: bold;">
           💾 Save Image
@@ -652,7 +670,8 @@
       </div>
 
       <p style="font-size: 13px; color: #666;">
-        <strong>Instructions:</strong> Click and drag to draw flowing organic shapes. Each stroke creates a unique pattern based on your mouse movement, velocity, and pressure simulation.
+        <strong>Based on:</strong> <a href="https://basiljs.ch/gallery/" target="_blank" style="color: #6366F1; text-decoration: underline;">basil.js</a> tutorial "01_connecting_all_words_with_lines" -
+        Every word from the left block connects to every word on the right, creating <code>M × N</code> connections. Try editing the text to see the network update in real-time!
       </p>
     </div>
   </div>
