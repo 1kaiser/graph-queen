@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>3D Force Graph - Clean Demo</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌐</text></svg>">
+  <title>Graph Queen</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👑</text></svg>">
   <style>
     * {
       margin: 0;
@@ -14,254 +14,186 @@
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #FAFAFA;
+      background: #FFFFFF;
       color: #333;
       overflow: hidden;
-    }
-
-    .container {
-      display: flex;
       height: 100vh;
     }
 
-    .sidebar {
-      width: 300px;
+    #container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      border: 2px solid #333;
+    }
+
+    /* Graph area */
+    #graphArea {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
       background: #FFFFFF;
+    }
+
+    #graphCanvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Graph label */
+    .graph-label {
+      position: absolute;
+      top: 120px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #B8D4E8;
+      padding: 15px 40px;
+      border: 2px solid #333;
+      border-radius: 8px;
+      font-size: 20px;
+      font-weight: bold;
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    /* Draggable panels */
+    .draggable-panel {
+      position: absolute;
+      background: #B8D4E8;
+      border: 2px solid #333;
+      border-radius: 8px;
       padding: 20px;
-      box-shadow: 2px 0 8px rgba(0,0,0,0.05);
-      overflow-y: auto;
+      cursor: move;
+      user-select: none;
       z-index: 10;
     }
 
-    .sidebar h1 {
-      font-size: 24px;
+    .draggable-panel.dragging {
+      opacity: 0.8;
+    }
+
+    /* Corner handle */
+    .drag-handle {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      width: 24px;
+      height: 24px;
+      background: #B8D4E8;
+      border: 2px solid #333;
+      border-radius: 3px;
+      cursor: nwse-resize;
+    }
+
+    /* Slide-in button panel */
+    #slidePanel {
+      top: 100px;
+      right: 50px;
+      width: 250px;
+      text-align: center;
+    }
+
+    #slidePanel .panel-title {
+      font-size: 14px;
+      font-weight: bold;
       margin-bottom: 10px;
-      color: #1976D2;
+      line-height: 1.4;
     }
 
-    .sidebar .subtitle {
+    #slidePanel a {
+      color: #0066CC;
+      text-decoration: underline;
       font-size: 12px;
-      color: #666;
-      margin-bottom: 20px;
+      word-break: break-all;
     }
 
-    .control-group {
-      margin-bottom: 20px;
+    /* Upload button panel */
+    #uploadPanel {
+      top: 380px;
+      right: 50px;
+      width: 200px;
+      text-align: center;
     }
 
-    .control-group label {
-      display: block;
-      margin-bottom: 5px;
-      font-size: 14px;
-      color: #666;
-      font-weight: 500;
+    #uploadPanel .panel-title {
+      font-size: 16px;
+      font-weight: bold;
     }
 
-    .control-group input[type="color"],
-    .control-group input[type="range"],
-    .control-group select {
-      width: 100%;
-      padding: 8px;
-      border: 1px solid #E0E0E0;
-      border-radius: 4px;
-      font-size: 14px;
-    }
-
-    .control-group input[type="number"] {
-      width: 100%;
-      padding: 8px;
-      border: 1px solid #E0E0E0;
-      border-radius: 4px;
-      font-size: 14px;
-    }
-
-    .value-display {
-      display: inline-block;
-      margin-left: 10px;
-      font-weight: 600;
-      color: #1976D2;
-    }
-
-    .btn {
-      width: 100%;
-      padding: 10px;
-      background: #1976D2;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-      margin-top: 10px;
-      transition: background 0.2s;
-    }
-
-    .btn:hover {
-      background: #1565C0;
-    }
-
-    .btn.secondary {
-      background: #757575;
-    }
-
-    .btn.secondary:hover {
-      background: #616161;
-    }
-
-    #graph {
-      flex: 1;
-      position: relative;
-      width: 100%;
-      height: 100%;
-      min-height: 400px;
-    }
-
-    .info-panel {
+    /* Text box at bottom */
+    #textBoxContainer {
       position: absolute;
-      top: 20px;
-      right: 20px;
-      background: rgba(255, 255, 255, 0.95);
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      max-width: 300px;
-      display: none;
-      backdrop-filter: blur(10px);
-    }
-
-    .info-panel.active {
-      display: block;
-    }
-
-    .info-panel h3 {
-      margin: 0 0 10px 0;
-      color: #1976D2;
-      font-size: 18px;
-    }
-
-    .info-panel p {
-      margin: 0;
-      color: #666;
-      font-size: 14px;
-      line-height: 1.6;
-    }
-
-    .stats {
-      background: #E3F2FD;
-      padding: 10px;
-      border-radius: 4px;
-      margin-top: 20px;
-    }
-
-    .stats div {
-      display: flex;
-      justify-content: space-between;
-      padding: 5px 0;
-      font-size: 13px;
-    }
-
-    .stats .label {
-      color: #666;
-    }
-
-    .stats .value {
-      color: #1976D2;
-      font-weight: 600;
-    }
-
-    .loading {
-      position: absolute;
-      top: 50%;
+      bottom: 40px;
       left: 50%;
-      transform: translate(-50%, -50%);
-      font-size: 18px;
-      color: #1976D2;
+      transform: translateX(-50%);
+      z-index: 10;
     }
 
-    /* Test markers for Playwright */
-    [data-testid] {
-      outline: none;
+    #textBox {
+      width: 400px;
+      padding: 12px 20px;
+      border: 2px solid #333;
+      border-radius: 4px;
+      background: #B8D4E8;
+      font-size: 14px;
+      font-family: inherit;
+    }
+
+    #textBox::placeholder {
+      color: #666;
+    }
+
+    /* Upload input (hidden) */
+    #fileInput {
+      display: none;
+    }
+
+    /* Clickable upload panel */
+    #uploadPanel {
+      cursor: pointer;
+    }
+
+    #uploadPanel:hover {
+      background: #A0C4DD;
     }
   </style>
-  <script type="module" crossorigin src="/graph-queen/assets/index-CKwEU4iJ.js"></script>
+  <script type="module" crossorigin src="/graph-queen/assets/index-BUyYKdfc.js"></script>
 </head>
 <body>
-  <div class="container">
-    <div class="sidebar">
-      <h1>3D Force Graph</h1>
-      <div class="subtitle">Interactive Network Visualization</div>
-
-      <div class="control-group">
-        <label for="bgColor">Background Color</label>
-        <input type="color" id="bgColor" value="#FFFFFF" data-testid="bg-color-input">
-      </div>
-
-      <div class="control-group">
-        <label for="nodeColor">Node Color</label>
-        <input type="color" id="nodeColor" value="#1976D2" data-testid="node-color-input">
-      </div>
-
-      <div class="control-group">
-        <label for="linkOpacity">
-          Link Opacity
-          <span class="value-display" id="linkOpacityValue">30%</span>
-        </label>
-        <input type="range" id="linkOpacity" min="0" max="100" value="30" data-testid="link-opacity-input">
-      </div>
-
-      <div class="control-group">
-        <label for="nodeCount">Node Count</label>
-        <input type="number" id="nodeCount" min="10" max="200" value="50" data-testid="node-count-input">
-      </div>
-
-      <div class="control-group">
-        <label for="layout">Layout Mode</label>
-        <select id="layout" data-testid="layout-select">
-          <option value="">Force Directed</option>
-          <option value="td">Top-Down (DAG)</option>
-          <option value="bu">Bottom-Up (DAG)</option>
-          <option value="lr">Left-Right (DAG)</option>
-          <option value="rl">Right-Left (DAG)</option>
-          <option value="radialout">Radial Outward</option>
-          <option value="radialin">Radial Inward</option>
-        </select>
-      </div>
-
-      <button class="btn" id="zoomFitBtn" data-testid="zoom-fit-btn">
-        📐 Fit to View
-      </button>
-
-      <button class="btn" id="regenerateBtn" data-testid="regenerate-btn">
-        🔄 Regenerate Graph
-      </button>
-
-      <button class="btn secondary" id="pauseBtn" data-testid="pause-btn">
-        ⏸️ Pause Animation
-      </button>
-
-      <div class="stats">
-        <div>
-          <span class="label">Nodes:</span>
-          <span class="value" id="nodeCountDisplay" data-testid="node-count-display">0</span>
-        </div>
-        <div>
-          <span class="label">Links:</span>
-          <span class="value" id="linkCountDisplay" data-testid="link-count-display">0</span>
-        </div>
-        <div>
-          <span class="label">Status:</span>
-          <span class="value" id="statusDisplay" data-testid="status-display">Loading...</span>
-        </div>
-      </div>
+  <div id="container">
+    <!-- Graph visualization area -->
+    <div id="graphArea">
+      <canvas id="graphCanvas"></canvas>
     </div>
 
-    <div style="flex: 1; position: relative; display: flex; flex-direction: column;">
-      <div id="graph" data-testid="graph-container">
-        <div class="loading" id="loading">Initializing...</div>
+    <!-- Graph label -->
+    <div class="graph-label">GRAPH</div>
+
+    <!-- Slide-in button panel -->
+    <div id="slidePanel" class="draggable-panel">
+      <div class="drag-handle"></div>
+      <div class="panel-title">
+        BUTTON CLICK WILL<br>SLIDE IN
       </div>
-      <div class="info-panel" id="infoPanel" data-testid="info-panel">
-        <h3 id="nodeTitle"></h3>
-        <p id="nodeDetails"></p>
+      <a href="https://github.com/scribeocr/scribeocr" target="_blank">
+        https://github.com/scribeocr/scribeocr
+      </a>
+    </div>
+
+    <!-- Upload button panel -->
+    <div id="uploadPanel" class="draggable-panel" onclick="document.getElementById('fileInput').click()">
+      <div class="drag-handle"></div>
+      <div class="panel-title">
+        UPLOAD<br>BUTTON
       </div>
+    </div>
+    <input type="file" id="fileInput" accept=".json,.mmd,.txt">
+
+    <!-- Text box at bottom -->
+    <div id="textBoxContainer">
+      <input type="text" id="textBox" placeholder="TEXT BOX">
     </div>
   </div>
 
