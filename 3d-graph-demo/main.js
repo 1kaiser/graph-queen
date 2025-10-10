@@ -1837,10 +1837,92 @@ window.toggleSettingsPanel = function() {
   }, 100);
 };
 
+// ========== VOICE INPUT (Web Speech API) ==========
+
+/**
+ * Voice input functionality using Web Speech API
+ * Similar to wordy site implementation
+ */
+const voiceBtn = document.getElementById('voiceBtn');
+let recognition = null;
+let isListening = false;
+
+// Check if browser supports Web Speech API
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.lang = 'en-US';
+
+  recognition.onstart = function() {
+    isListening = true;
+    voiceBtn.classList.add('listening');
+    voiceBtn.textContent = '🔴';
+    console.log('🎤 Voice recognition started');
+  };
+
+  recognition.onresult = function(event) {
+    const transcript = event.results[0][0].transcript;
+    console.log(`🗣️ Recognized: "${transcript}"`);
+
+    // Add to text box
+    const textBox = document.getElementById('textBox');
+    if (textBox.value) {
+      textBox.value += ' ' + transcript;
+    } else {
+      textBox.value = transcript;
+    }
+
+    // Focus text box
+    textBox.focus();
+  };
+
+  recognition.onerror = function(event) {
+    console.error('❌ Speech recognition error:', event.error);
+    isListening = false;
+    voiceBtn.classList.remove('listening');
+    voiceBtn.textContent = '🎤';
+
+    if (event.error === 'not-allowed') {
+      alert('Microphone access denied. Please allow microphone access in your browser settings.');
+    } else if (event.error === 'no-speech') {
+      alert('No speech detected. Please try again.');
+    }
+  };
+
+  recognition.onend = function() {
+    isListening = false;
+    voiceBtn.classList.remove('listening');
+    voiceBtn.textContent = '🎤';
+    console.log('🎤 Voice recognition ended');
+  };
+
+  voiceBtn.addEventListener('click', () => {
+    if (isListening) {
+      recognition.stop();
+    } else {
+      try {
+        recognition.start();
+      } catch (error) {
+        console.error('❌ Could not start voice recognition:', error);
+      }
+    }
+  });
+
+  console.log('🎤 Voice input enabled (Web Speech API)');
+} else {
+  // Browser doesn't support Web Speech API
+  voiceBtn.style.display = 'none';
+  console.warn('⚠️ Web Speech API not supported in this browser');
+}
+
 console.log('✨ Graph Queen ready with STREAMLINED workflow!');
 console.log('💡 📸 Upload Image/PDF → Automatic OCR → Nodes created at word positions');
+console.log('💡 🎤 Voice Input → Click microphone to speak text');
 console.log('💡 🔗 Connect Mode → Drag from one node to another to draw connections');
 console.log('💡 🤖 Auto-Connect → AI links similar words automatically');
 console.log('💡 Drag nodes to reposition, double-click to edit labels');
-console.log('💡 ⚙️ Settings → Basil.js + p5.js interactive demo included!');
+console.log('💡 ⚙️ Settings → Basil.js text graph demo included!');
 console.log('💡 Keyboard: Ctrl+S (save), Ctrl+Z (undo), Ctrl+Shift+Z (redo), Delete (remove)');
