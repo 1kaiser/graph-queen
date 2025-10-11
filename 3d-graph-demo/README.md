@@ -330,16 +330,16 @@ graph-queen/
 {
   "metadata": {
     "exported": "2025-10-11T12:34:56.789Z",
-    "nodeCount": 116,
-    "edgeCount": 45,
+    "nodeCount": 46,
+    "edgeCount": 14,
     "graphQueenVersion": "1.0.0",
     "hasOCRData": true
   },
   "nodes": [...],  // Node array with full data
   "edges": [...],  // Edge array with connections
   "statistics": {
-    "avgDegree": "0.78",
-    "density": "0.0068"
+    "avgDegree": "0.61",
+    "density": "0.0135"
   }
 }
 ```
