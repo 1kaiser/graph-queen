@@ -87,15 +87,11 @@ test.describe('Graph Queen - Complete Workflow Demonstration', () => {
 
     await page.click('#autoConnectBtn');
     await page.waitForTimeout(3000);
-    console.log('Auto-connect complete\n');
+    console.log('Auto-connect complete');
+    console.log('Connect mode: Still ON (not turned off)\n');
 
     const edgeCountAfterAuto = await page.locator('#graphArea svg g.links line').count();
     console.log('Total connections after auto-connect: ' + edgeCountAfterAuto + '\n');
-
-    console.log('Turning OFF connect mode...');
-    await page.click('#connectModeBtn');
-    await page.waitForTimeout(500);
-    console.log('Connect mode: OFF\n');
 
     console.log('STEP 8: Clearing image background...');
     await page.evaluate(() => {
@@ -134,7 +130,7 @@ test.describe('Graph Queen - Complete Workflow Demonstration', () => {
 
     console.log('FINAL RESULT:');
     console.log('Nodes created: ' + nodeCount);
-    console.log('Connect mode: Kept ON during auto-connect');
+    console.log('Connect mode: Kept ON throughout entire workflow');
     console.log('Connections: ' + edgeCountAfterAuto);
     console.log('Background cleared: Yes');
     console.log('Graph exported: Yes (with success dialog)\n');
