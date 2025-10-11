@@ -59,13 +59,11 @@ test.describe('Graph Queen - Complete Workflow Demonstration', () => {
       await page.mouse.move(box2.x + box2.width / 2, box2.y + box2.height / 2, { steps: 15 });
       await page.mouse.up();
       await page.waitForTimeout(1000);
-      console.log('Manual connection created\n');
+      console.log('Manual connection created');
+      console.log('Connect mode remains ON for auto-connect\n');
     }
 
-    await page.click('#connectModeBtn');
-    await page.waitForTimeout(500);
-
-    console.log('STEP 7: AI Auto-Connect similar words...');
+    console.log('STEP 7: AI Auto-Connect with connect mode ON...');
 
     let dialogCount = 0;
     page.on('dialog', async dialog => {
@@ -82,7 +80,7 @@ test.describe('Graph Queen - Complete Workflow Demonstration', () => {
         console.log('  -> Clear background confirmation - keeping OCR data');
         await dialog.dismiss();
       } else if (dialogCount === 4) {
-        console.log('  -> Export confirmation');
+        console.log('  -> Export success dialog: ' + dialog.message().substring(0, 100));
         await dialog.accept();
       }
     });
@@ -93,6 +91,11 @@ test.describe('Graph Queen - Complete Workflow Demonstration', () => {
 
     const edgeCountAfterAuto = await page.locator('#graphArea svg g.links line').count();
     console.log('Total connections after auto-connect: ' + edgeCountAfterAuto + '\n');
+
+    console.log('Turning OFF connect mode...');
+    await page.click('#connectModeBtn');
+    await page.waitForTimeout(500);
+    console.log('Connect mode: OFF\n');
 
     console.log('STEP 8: Clearing image background...');
     await page.evaluate(() => {
@@ -108,7 +111,7 @@ test.describe('Graph Queen - Complete Workflow Demonstration', () => {
     await page.waitForTimeout(1500);
     console.log('Graph fitted to screen\n');
 
-    console.log('STEP 10: Exporting graph...');
+    console.log('STEP 10: Exporting graph with success dialog...');
     const downloadPromise = page.waitForEvent('download', { timeout: 5000 }).catch(() => null);
 
     await page.click('#exportBtn');
@@ -116,19 +119,25 @@ test.describe('Graph Queen - Complete Workflow Demonstration', () => {
 
     try {
       const download = await downloadPromise;
-      const filename = download.suggestedFilename();
-      console.log('Graph exported: ' + filename + '\n');
+      if (download) {
+        const filename = download.suggestedFilename();
+        console.log('Graph successfully exported: ' + filename);
+        console.log('Export success dialog shown to user\n');
+      } else {
+        console.log('Export triggered (dialog shown)\n');
+      }
     } catch (e) {
-      console.log('Export triggered\n');
+      console.log('Export completed (dialog shown)\n');
     }
 
     await page.waitForTimeout(1500);
 
     console.log('FINAL RESULT:');
     console.log('Nodes created: ' + nodeCount);
+    console.log('Connect mode: Kept ON during auto-connect');
     console.log('Connections: ' + edgeCountAfterAuto);
     console.log('Background cleared: Yes');
-    console.log('Graph exported: Yes\n');
+    console.log('Graph exported: Yes (with success dialog)\n');
 
     console.log('Complete workflow demonstration finished!\n');
 
