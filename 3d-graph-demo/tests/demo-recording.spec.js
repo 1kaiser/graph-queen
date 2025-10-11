@@ -91,22 +91,22 @@ test.describe('Graph Queen - Complete Workflow Demonstration', () => {
     await page.waitForTimeout(3000);
     console.log('Auto-connect complete\n');
 
-    console.log('STEP 8: Fitting to screen...');
-    await page.evaluate(() => {
-      if (window.fitToScreen) window.fitToScreen();
-    });
-    await page.waitForTimeout(1500);
-    console.log('Graph fitted to screen\n');
-
     const edgeCountAfterAuto = await page.locator('#graphArea svg g.links line').count();
     console.log('Total connections after auto-connect: ' + edgeCountAfterAuto + '\n');
 
-    console.log('STEP 9: Clearing image background...');
+    console.log('STEP 8: Clearing image background...');
     await page.evaluate(() => {
       if (window.clearImageBackground) window.clearImageBackground();
     });
     await page.waitForTimeout(2000);
     console.log('Image background cleared\n');
+
+    console.log('STEP 9: Fitting to screen...');
+    await page.evaluate(() => {
+      if (window.fitToScreen) window.fitToScreen();
+    });
+    await page.waitForTimeout(1500);
+    console.log('Graph fitted to screen\n');
 
     console.log('STEP 10: Exporting graph...');
     const downloadPromise = page.waitForEvent('download', { timeout: 5000 }).catch(() => null);
