@@ -2,19 +2,21 @@
 
 **Transform documents into interactive knowledge graphs with automatic OCR and AI-powered connections**
 
+<div align="center">
+
+![Graph Queen Demo](./3d-graph-demo/demo.gif)
+
+**[🚀 Live Demo](https://1kaiser.github.io/graph-queen/)** | **[📖 Full Documentation](./3d-graph-demo/README.md)** | **[💻 Source Code](./3d-graph-demo)**
+
+</div>
+
+---
+
 ## 📦 Project Location
 
 The main Graph Queen project is located in the **[3d-graph-demo](./3d-graph-demo)** directory.
 
 **👉 [View Full Documentation](./3d-graph-demo/README.md)**
-
----
-
-## 🚀 Quick Links
-
-- **[🌐 Live Demo](https://1kaiser.github.io/graph-queen/)** - Try Graph Queen online
-- **[📖 Full README](./3d-graph-demo/README.md)** - Complete documentation
-- **[💻 Source Code](./3d-graph-demo)** - Project directory
 
 ---
 
