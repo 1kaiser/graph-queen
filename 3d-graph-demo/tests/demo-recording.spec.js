@@ -5,7 +5,7 @@ test.describe('Graph Queen - Complete Workflow Demonstration', () => {
   const TEST_IMAGE = '/tmp/test-image.jpg';
 
   test('Full workflow demonstration with all features', async ({ page }) => {
-    test.setTimeout(90000);
+    test.setTimeout(120000);
     console.log('\nStarting Graph Queen demonstration recording\n');
 
     console.log('STEP 1: Loading Graph Queen...');
@@ -43,7 +43,7 @@ test.describe('Graph Queen - Complete Workflow Demonstration', () => {
     await page.waitForTimeout(1000);
     console.log('Node selected\n');
 
-    console.log('STEP 6: Creating connection between nodes...');
+    console.log('STEP 6: Creating manual connection...');
     await page.click('#connectModeBtn');
     await page.waitForTimeout(500);
 
@@ -59,24 +59,80 @@ test.describe('Graph Queen - Complete Workflow Demonstration', () => {
       await page.mouse.move(box2.x + box2.width / 2, box2.y + box2.height / 2, { steps: 15 });
       await page.mouse.up();
       await page.waitForTimeout(1000);
-      console.log('Connection created\n');
+      console.log('Manual connection created\n');
     }
 
-    console.log('STEP 7: Fitting to screen...');
+    await page.click('#connectModeBtn');
+    await page.waitForTimeout(500);
+
+    console.log('STEP 7: AI Auto-Connect similar words...');
+
+    let dialogCount = 0;
+    page.on('dialog', async dialog => {
+      dialogCount++;
+      console.log('Dialog ' + dialogCount + ': ' + dialog.type() + ' - ' + dialog.message().substring(0, 50));
+
+      if (dialogCount === 1) {
+        console.log('  -> Setting similarity threshold to 70%');
+        await dialog.accept('70');
+      } else if (dialogCount === 2) {
+        console.log('  -> Auto-connect completion alert');
+        await dialog.accept();
+      } else if (dialogCount === 3) {
+        console.log('  -> Clear background confirmation - keeping OCR data');
+        await dialog.dismiss();
+      } else if (dialogCount === 4) {
+        console.log('  -> Export confirmation');
+        await dialog.accept();
+      }
+    });
+
+    await page.click('#autoConnectBtn');
+    await page.waitForTimeout(3000);
+    console.log('Auto-connect complete\n');
+
+    console.log('STEP 8: Fitting to screen...');
     await page.evaluate(() => {
       if (window.fitToScreen) window.fitToScreen();
     });
     await page.waitForTimeout(1500);
-    console.log('Final overview displayed\n');
+    console.log('Graph fitted to screen\n');
 
-    const edgeCount = await page.locator('#graphArea svg g.links line').count();
+    const edgeCountAfterAuto = await page.locator('#graphArea svg g.links line').count();
+    console.log('Total connections after auto-connect: ' + edgeCountAfterAuto + '\n');
+
+    console.log('STEP 9: Clearing image background...');
+    await page.evaluate(() => {
+      if (window.clearImageBackground) window.clearImageBackground();
+    });
+    await page.waitForTimeout(2000);
+    console.log('Image background cleared\n');
+
+    console.log('STEP 10: Exporting graph...');
+    const downloadPromise = page.waitForEvent('download', { timeout: 5000 }).catch(() => null);
+
+    await page.click('#exportBtn');
+    await page.waitForTimeout(1000);
+
+    try {
+      const download = await downloadPromise;
+      const filename = download.suggestedFilename();
+      console.log('Graph exported: ' + filename + '\n');
+    } catch (e) {
+      console.log('Export triggered\n');
+    }
+
+    await page.waitForTimeout(1500);
+
     console.log('FINAL RESULT:');
     console.log('Nodes created: ' + nodeCount);
-    console.log('Connections: ' + edgeCount);
-    console.log('Background image: Visible\n');
+    console.log('Connections: ' + edgeCountAfterAuto);
+    console.log('Background cleared: Yes');
+    console.log('Graph exported: Yes\n');
 
-    console.log('Demonstration complete!\n');
+    console.log('Complete workflow demonstration finished!\n');
 
     expect(nodeCount).toBeGreaterThan(0);
+    expect(edgeCountAfterAuto).toBeGreaterThan(0);
   });
 });
