@@ -111,6 +111,12 @@ const svg = d3.select('#graphArea')
 // Create container group for zoom/pan
 const zoomContainer = svg.append('g').attr('class', 'zoom-container');
 
+// Create image background layer (for OCR visualization)
+const imageLayer = zoomContainer.append('g').attr('class', 'image-layer');
+
+// Create word rectangles layer (for OCR visualization)
+const wordRectLayer = zoomContainer.append('g').attr('class', 'word-rect-layer');
+
 // Create groups for edges and nodes inside the container
 const linkGroup = zoomContainer.append('g').attr('class', 'links');
 const nodeGroup = zoomContainer.append('g').attr('class', 'nodes');
@@ -881,6 +887,26 @@ function exportGraphData() {
   alert(`Graph exported successfully!\n\nFile: ${filename}\nNodes: ${graphNodes.length}\nEdges: ${graphEdges.length}\nAvg Degree: ${graphData.statistics.avgDegree}\nDensity: ${graphData.statistics.density}`);
 }
 
+// Clear image background and word boxes - ScribeOCR style
+function clearImageBackground() {
+  // Remove image and word boxes
+  imageLayer.selectAll('*').remove();
+  wordRectLayer.selectAll('*').remove();
+
+  ocrVisualizationMode = false;
+
+  console.log('🗑️ Cleared image background and word boxes');
+
+  // Optional: Reset OCR data
+  const resetOCR = confirm('Also clear OCR data?\n\nClick "OK" to reset OCR data\nClick "Cancel" to keep OCR data for later use');
+  if (resetOCR) {
+    lastOCRData = null;
+    lastImageDataURL = null;
+    currentImageFile = null;
+    console.log('🗑️ OCR data and image cleared');
+  }
+}
+
 // Make functions available globally for onclick handlers
 window.toggleOCRPanel = toggleOCRPanel;
 window.toggleHelpPanel = toggleHelpPanel;
@@ -888,6 +914,7 @@ window.toggleSettingsPanel = toggleSettingsPanel;
 window.closeAllPanels = closeAllPanels;
 window.createGraphFromWords = createGraphFromWords;
 window.exportGraphData = exportGraphData;
+window.clearImageBackground = clearImageBackground;
 
 // OCR Image Upload
 const ocrImageInput = document.getElementById('ocrImageInput');
@@ -901,13 +928,14 @@ ocrImageInput.addEventListener('change', (e) => {
     currentImageFile = file;
     console.log(`📷 Image selected: ${file.name}`);
 
-    // Show preview
+    // Show preview and save data URL
     const reader = new FileReader();
     reader.onload = (event) => {
-      ocrPreview.src = event.target.result;
+      lastImageDataURL = event.target.result; // Save for later visualization
+      ocrPreview.src = lastImageDataURL;
       ocrPreview.style.display = 'block';
       extractBtn.disabled = false;
-      console.log('✅ Image preview loaded');
+      console.log('✅ Image preview loaded and data URL saved');
     };
     reader.readAsDataURL(file);
   }
@@ -918,6 +946,7 @@ const ocrStatus = document.getElementById('ocrStatus');
 const ocrResult = document.getElementById('ocrResult');
 const useTextBtn = document.getElementById('useTextBtn');
 let lastOCRData = null; // Store full OCR data with bounding boxes
+let lastImageDataURL = null; // Store image data URL for visualization
 
 extractBtn.addEventListener('click', async () => {
   if (!currentImageFile) {
@@ -1012,7 +1041,7 @@ let ocrImageOffsetX = 0;
 let ocrImageOffsetY = 0;
 let ocrVisualizationMode = false;
 
-// Show word rectangles on image
+// Show word rectangles on image - ScribeOCR style
 function showWordRectangles() {
   if (!lastOCRData) {
     console.error('❌ No OCR data available');
@@ -1027,31 +1056,20 @@ function showWordRectangles() {
     return;
   }
 
-  console.log('📊 Visualizing word rectangles...');
+  console.log('📊 Visualizing word rectangles (ScribeOCR style)...');
   console.log(`Processing ${lastOCRData.words.length} words`);
+  console.log('📷 Image data URL available:', !!lastImageDataURL);
   ocrVisualizationMode = true;
 
   // Display the uploaded image with word rectangles
-  if (currentImageFile) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        // Clear existing graph
-        const clearConfirm = graphNodes.length > 0 ?
-          confirm('This will clear the current graph. Continue?') : true;
-
-        if (!clearConfirm) return;
-
-        graphNodes = [];
-        graphEdges = [];
-        updateGraph();
-
-        // Add image to SVG as background
-        const existingImage = svg.select('image.ocr-background');
-        if (!existingImage.empty()) {
-          existingImage.remove();
-        }
+  if (lastImageDataURL) {
+    console.log('🖼️ Loading image from saved data URL...');
+    const img = new Image();
+    img.onload = () => {
+      console.log('✅ Image loaded successfully:', { width: img.width, height: img.height });
+        // Clear existing visualization layers
+        imageLayer.selectAll('*').remove();
+        wordRectLayer.selectAll('*').remove();
 
         // Calculate scale to fit image in viewport
         const imgWidth = img.width;
@@ -1061,20 +1079,28 @@ function showWordRectangles() {
         ocrImageOffsetX = (width - imgWidth * ocrImageScale) / 2;
         ocrImageOffsetY = (height - imgHeight * ocrImageScale) / 2;
 
-        // Add image with higher opacity for visualization
-        svg.insert('image', ':first-child')
+        console.log('📐 Image dimensions:', { imgWidth, imgHeight, ocrImageScale });
+        console.log('📍 Image position:', { ocrImageOffsetX, ocrImageOffsetY });
+        console.log('🖼️ Scaled size:', {
+          width: imgWidth * ocrImageScale,
+          height: imgHeight * ocrImageScale
+        });
+
+        // Add image to the image layer (inside zoom container)
+        const imageElement = imageLayer.append('image')
           .attr('class', 'ocr-background')
-          .attr('href', e.target.result)
+          .attr('href', lastImageDataURL)
           .attr('width', imgWidth * ocrImageScale)
           .attr('height', imgHeight * ocrImageScale)
           .attr('x', ocrImageOffsetX)
           .attr('y', ocrImageOffsetY)
-          .attr('opacity', 0.7);
+          .attr('opacity', 0.8) // Increased opacity for better visibility
+          .style('pointer-events', 'none'); // Don't interfere with other interactions
 
-        // Draw word bounding boxes
-        const rectGroup = svg.insert('g', ':first-child + *')
-          .attr('class', 'word-rectangles');
+        console.log('✅ Image element created in SVG:', imageElement.node());
+        console.log('🎨 Image href:', imageElement.attr('href').substring(0, 50) + '...');
 
+        // Draw word bounding boxes in the word rect layer
         let validWordCount = 0;
         lastOCRData.words.forEach((word, i) => {
           // Validate word structure
@@ -1103,30 +1129,28 @@ function showWordRectangles() {
             return;
           }
 
-          const rect = rectGroup.append('rect')
-            .attr('class', 'word-bbox')
+          // Create word box group
+          const wordBox = wordRectLayer.append('g')
+            .attr('class', 'word-box')
             .attr('data-word-index', i)
+            .style('cursor', 'pointer');
+
+          // Add rectangle
+          wordBox.append('rect')
+            .attr('class', 'word-bbox')
             .attr('x', rectX)
             .attr('y', rectY)
             .attr('width', rectWidth)
             .attr('height', rectHeight)
-            .attr('fill', 'none')
+            .attr('fill', 'rgba(255, 107, 107, 0.1)')
             .attr('stroke', '#FF6B6B')
             .attr('stroke-width', 2)
-            .attr('opacity', 0.8)
-            .style('cursor', 'pointer')
-            .on('click', function() {
-              // Toggle rectangle selection
-              const isSelected = d3.select(this).attr('stroke') === 'steelblue';
-              d3.select(this)
-                .attr('stroke', isSelected ? '#FF6B6B' : 'steelblue')
-                .attr('stroke-width', isSelected ? 2 : 3);
-            });
+            .attr('opacity', 0.8);
 
-          // Add word label if text exists
+          // Add word label
           const wordText = word.text || word.word || '';
           if (wordText) {
-            rectGroup.append('text')
+            wordBox.append('text')
               .attr('x', rectX + rectWidth / 2)
               .attr('y', rectY - 5)
               .attr('text-anchor', 'middle')
@@ -1136,98 +1160,153 @@ function showWordRectangles() {
               .attr('paint-order', 'stroke')
               .attr('font-size', '10px')
               .attr('font-weight', 'bold')
+              .attr('pointer-events', 'none')
               .text(wordText);
           }
+
+          // Click handler: directly create node from word box
+          wordBox.on('click', function(event) {
+            event.stopPropagation();
+
+            const wordIndex = parseInt(d3.select(this).attr('data-word-index'));
+            const clickedWord = lastOCRData.words[wordIndex];
+
+            if (!clickedWord || !clickedWord.bbox) return;
+
+            // Create node at word position
+            const bbox = clickedWord.bbox;
+            const centerX = ocrImageOffsetX + (bbox.x0 + bbox.x1) / 2 * ocrImageScale;
+            const centerY = ocrImageOffsetY + (bbox.y0 + bbox.y1) / 2 * ocrImageScale;
+
+            const newNode = {
+              id: `ocr_${Date.now()}_${wordIndex}`,
+              label: clickedWord.text || clickedWord.word || 'Unknown',
+              x: centerX,
+              y: centerY,
+              fx: centerX,
+              fy: centerY,
+              wordBBox: bbox,
+              confidence: clickedWord.confidence || null
+            };
+
+            graphNodes.push(newNode);
+
+            // Remove this word box after creating node
+            d3.select(this).remove();
+
+            updateGraph();
+            saveState();
+
+            console.log(`✅ Created node from word: "${newNode.label}"`);
+          });
+
+          // Hover effect
+          wordBox.on('mouseenter', function() {
+            d3.select(this).select('rect')
+              .attr('stroke', '#6366F1')
+              .attr('stroke-width', 3)
+              .attr('fill', 'rgba(99, 102, 241, 0.2)');
+
+            d3.select(this).select('text')
+              .attr('fill', '#6366F1');
+          });
+
+          wordBox.on('mouseleave', function() {
+            d3.select(this).select('rect')
+              .attr('stroke', '#FF6B6B')
+              .attr('stroke-width', 2)
+              .attr('fill', 'rgba(255, 107, 107, 0.1)');
+
+            d3.select(this).select('text')
+              .attr('fill', '#FF6B6B');
+          });
 
           validWordCount++;
         });
 
         if (validWordCount === 0) {
           alert('No valid word rectangles could be drawn!\n\nThe OCR data may be corrupted or the image format is not supported.');
-          svg.selectAll('.word-rectangles').remove();
-          svg.selectAll('.ocr-background').remove();
+          imageLayer.selectAll('*').remove();
+          wordRectLayer.selectAll('*').remove();
           return;
         }
 
         console.log(`✅ Visualized ${validWordCount} word rectangles (out of ${lastOCRData.words.length} total)`);
-        alert(`Showing ${validWordCount} detected words!\n\nClick rectangles to select them (they turn blue), then click "Create Graph from Selected" or "Create Graph from All".`);
+        alert(`📸 ScribeOCR-style visualization!\n\nShowing ${validWordCount} detected words as clickable boxes over the image.\n\n💡 Click any word box to create a node\n💡 Image and boxes zoom/pan with the graph\n💡 Use "Create Graph from All" to add all remaining words\n\nTip: The image background stays persistent!`);
 
         // Update OCR panel buttons
         document.getElementById('createGraphBtn').disabled = false;
         document.getElementById('createGraphSelectedBtn').disabled = false;
       };
-      img.src = e.target.result;
+    img.onerror = (error) => {
+      console.error('❌ Failed to load image:', error);
+      alert('Failed to load image for visualization!\n\nPlease try uploading the image again.');
     };
-    reader.readAsDataURL(currentImageFile);
+
+    img.src = lastImageDataURL;
+  } else {
+    console.error('❌ No image data URL available');
+    alert('No image data available!\n\nPlease upload an image first in the OCR panel and run OCR.');
   }
 }
 
-// Create graph from all or selected word rectangles
+// Create graph from all or selected word rectangles - ScribeOCR style
 function createGraphFromWords(selectedOnly = false) {
   if (!lastOCRData || !lastOCRData.words || lastOCRData.words.length === 0) {
     alert('Please run OCR and visualize word rectangles first!');
     return;
   }
 
-  let wordsToAdd = [];
+  // Get all remaining word boxes (ones that haven't been clicked yet)
+  const remainingWordBoxes = wordRectLayer.selectAll('.word-box');
 
-  if (selectedOnly) {
-    // Get selected rectangles
-    const selectedRects = svg.selectAll('.word-bbox').filter(function() {
-      return d3.select(this).attr('stroke') === 'steelblue';
-    });
-
-    if (selectedRects.empty()) {
-      alert('Please select some word rectangles first by clicking on them!');
-      return;
-    }
-
-    selectedRects.each(function() {
-      const index = parseInt(d3.select(this).attr('data-word-index'));
-      wordsToAdd.push({ word: lastOCRData.words[index], index });
-    });
-  } else {
-    // Add all words
-    wordsToAdd = lastOCRData.words.map((word, index) => ({ word, index }));
-  }
-
-  // Create nodes from selected words with validation
-  const newNodes = wordsToAdd
-    .filter(({ word }) => word && word.bbox && word.bbox.x0 !== undefined)
-    .map(({ word, index }) => {
-      const bbox = word.bbox;
-      const nodeX = ocrImageOffsetX + (bbox.x0 + bbox.x1) / 2 * ocrImageScale;
-      const nodeY = ocrImageOffsetY + (bbox.y0 + bbox.y1) / 2 * ocrImageScale;
-
-      return {
-        id: `ocr_${Date.now()}_${index}`,
-        label: word.text || word.word || 'Unknown',
-        x: nodeX,
-        y: nodeY,
-        fx: nodeX,
-        fy: nodeY,
-        wordBBox: bbox,
-        confidence: word.confidence || null
-      };
-    });
-
-  if (newNodes.length === 0) {
-    alert('No valid nodes could be created from the selected words!');
+  if (remainingWordBoxes.empty()) {
+    alert('All word boxes have already been converted to nodes!\n\nRun OCR again on a new image to get more words.');
     return;
   }
 
-  // Remove word rectangles visualization
-  svg.selectAll('.word-rectangles').remove();
+  const nodesToCreate = [];
 
-  // Add nodes to graph
-  graphNodes.push(...newNodes);
+  remainingWordBoxes.each(function() {
+    const wordIndex = parseInt(d3.select(this).attr('data-word-index'));
+    const word = lastOCRData.words[wordIndex];
+
+    if (!word || !word.bbox || typeof word.bbox.x0 !== 'number') return;
+
+    const bbox = word.bbox;
+    const centerX = ocrImageOffsetX + (bbox.x0 + bbox.x1) / 2 * ocrImageScale;
+    const centerY = ocrImageOffsetY + (bbox.y0 + bbox.y1) / 2 * ocrImageScale;
+
+    nodesToCreate.push({
+      id: `ocr_${Date.now()}_${wordIndex}_${Math.random().toString(36).substr(2, 9)}`,
+      label: word.text || word.word || 'Unknown',
+      x: centerX,
+      y: centerY,
+      fx: centerX,
+      fy: centerY,
+      wordBBox: bbox,
+      confidence: word.confidence || null
+    });
+  });
+
+  if (nodesToCreate.length === 0) {
+    alert('No valid nodes could be created from the remaining words!');
+    return;
+  }
+
+  // Add all nodes to graph
+  graphNodes.push(...nodesToCreate);
+
+  // Remove all word boxes
+  wordRectLayer.selectAll('.word-box').remove();
+
   updateGraph();
   saveState();
 
   ocrVisualizationMode = false;
 
-  console.log(`✅ Created ${newNodes.length} nodes from OCR word rectangles`);
-  alert(`Created ${newNodes.length} nodes!\n\nNow you can:\n- Manually connect them in Connect Mode\n- Use Auto-Connect Similar\n- Export the graph with Ctrl+S`);
+  console.log(`✅ Created ${nodesToCreate.length} nodes from remaining OCR word boxes`);
+  alert(`Created ${nodesToCreate.length} nodes from all remaining words!\n\nThe image background stays visible.\n\nNext steps:\n• Use "🔗 Connect Mode" to draw connections\n• Use "🤖 Auto-Connect Similar" to link related words\n• Drag nodes to reposition them\n• Press Ctrl+S to save or "💾 Export Graph"`);
 
   // Close the OCR panel
   closeAllPanels();
@@ -1500,26 +1579,36 @@ autoOCRInput.addEventListener('change', async (e) => {
         throw new Error(`PDF conversion failed: ${pdfError.message}`);
       }
     }
-    // Run Tesseract OCR with progress tracking
-    const result = await Tesseract.recognize(imageToProcess, 'eng', {
+    // Run Tesseract OCR with detailed output configuration
+    const worker = await Tesseract.createWorker('eng', 1, {
       logger: (m) => {
         if (m.status === 'recognizing text') {
-          const progress = Math.round(m.progress * 100);
+          const percent = Math.round(m.progress * 100);
           const baseProgress = isPDF ? 50 : 0;
-          const adjustedProgress = baseProgress + (progress * (isPDF ? 0.5 : 1));
+          const adjustedProgress = baseProgress + (percent * (isPDF ? 0.5 : 1));
           ocrProgressText.textContent = `Extracting text...`;
           ocrProgressPercent.textContent = `${Math.round(adjustedProgress)}%`;
         }
       }
     });
 
+    // Enable structured output to get word-level bounding boxes
+    const result = await worker.recognize(imageToProcess, {}, {
+      text: true,
+      blocks: true
+    });
+
+    await worker.terminate();
+
     // Validate OCR result
     if (!result || !result.data) {
       throw new Error('OCR returned invalid result');
     }
 
-    // Extract words with fallback hierarchy
+    // Extract words with bounding boxes from Tesseract result
     let words = [];
+
+    // Debug: Log the actual structure
     console.log('📊 OCR result structure:', {
       hasWords: !!result.data.words,
       hasLines: !!result.data.lines,
@@ -1527,26 +1616,78 @@ autoOCRInput.addEventListener('change', async (e) => {
       text: result.data.text?.substring(0, 100)
     });
 
-    if (result.data.words && Array.isArray(result.data.words)) {
-      words = result.data.words;
-      console.log(`✅ Found ${words.length} words directly`);
-    } else if (result.data.lines && Array.isArray(result.data.lines)) {
-      words = result.data.lines.flatMap(line =>
-        (line.words && Array.isArray(line.words)) ? line.words : []
+    // Log ALL available properties
+    console.log('📋 All result.data properties:', Object.keys(result.data));
+    console.log('🔍 Checking blocks:', {
+      exists: 'blocks' in result.data,
+      type: typeof result.data.blocks,
+      isArray: Array.isArray(result.data.blocks),
+      length: result.data.blocks?.length,
+      value: result.data.blocks
+    });
+
+    // Extract words from blocks hierarchy: blocks → paragraphs → lines → words
+    if (result.data.blocks && Array.isArray(result.data.blocks)) {
+      console.log(`📦 Found ${result.data.blocks.length} blocks`);
+      if (result.data.blocks.length > 0) {
+        const firstBlock = result.data.blocks[0];
+        console.log('📦 First block properties:', Object.keys(firstBlock));
+        if (firstBlock.paragraphs) {
+          console.log(`  → Block has ${firstBlock.paragraphs.length} paragraphs`);
+          if (firstBlock.paragraphs.length > 0) {
+            const firstPara = firstBlock.paragraphs[0];
+            console.log('  📄 First paragraph properties:', Object.keys(firstPara));
+            if (firstPara.lines) {
+              console.log(`    → Paragraph has ${firstPara.lines.length} lines`);
+              if (firstPara.lines.length > 0) {
+                const firstLine = firstPara.lines[0];
+                console.log('    📝 First line properties:', Object.keys(firstLine));
+                if (firstLine.words) {
+                  console.log(`      → Line has ${firstLine.words.length} words`);
+                  if (firstLine.words.length > 0) {
+                    console.log('      🔤 First word:', JSON.stringify(firstLine.words[0], null, 2));
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      words = result.data.blocks.flatMap(block =>
+        (block.paragraphs && Array.isArray(block.paragraphs)) ?
+          block.paragraphs.flatMap(para =>
+            (para.lines && Array.isArray(para.lines)) ?
+              para.lines.flatMap(line =>
+                (line.words && Array.isArray(line.words)) ?
+                  line.words.map(word => ({
+                    text: word.text,
+                    word: word.text,
+                    bbox: word.bbox,
+                    confidence: word.confidence
+                  })) : []
+              ) : []
+          ) : []
       );
-      console.log(`✅ Extracted ${words.length} words from ${result.data.lines.length} lines`);
-    } else if (result.data.paragraphs && Array.isArray(result.data.paragraphs)) {
-      words = result.data.paragraphs.flatMap(para =>
-        (para.lines && Array.isArray(para.lines)) ? para.lines.flatMap(line =>
-          (line.words && Array.isArray(line.words)) ? line.words : []
-        ) : []
-      );
-      console.log(`✅ Extracted ${words.length} words from paragraphs`);
+      console.log(`✅ Extracted ${words.length} words from blocks hierarchy`);
+      if (words.length > 0) console.log('Sample word structure:', words[0]);
+    } else {
+      console.warn('⚠️ No blocks found in result.data');
     }
 
-    console.log(`📝 Total words extracted: ${words.length}`);
-    if (words.length > 0) {
-      console.log('Sample words:', words.slice(0, 3).map(w => w.text || w.word));
+    // Count words with valid bboxes
+    const wordsWithBBox = words.filter(w =>
+      w.bbox &&
+      typeof w.bbox.x0 === 'number' &&
+      typeof w.bbox.y0 === 'number' &&
+      typeof w.bbox.x1 === 'number' &&
+      typeof w.bbox.y1 === 'number'
+    );
+
+    console.log(`📝 Total words: ${words.length}, with valid bboxes: ${wordsWithBBox.length}`);
+    if (words.length > 0 && wordsWithBBox.length === 0) {
+      console.warn('⚠️ Words found but NO bboxes! Checking bbox structure...');
+      console.log('First word full object:', JSON.stringify(words[0], null, 2));
     }
 
     if (words.length === 0) {
@@ -1558,8 +1699,7 @@ autoOCRInput.addEventListener('change', async (e) => {
         // Split text into words (remove extra whitespace and newlines)
         const rawWords = result.data.text
           .split(/\s+/)
-          .filter(w => w.trim().length > 2) // Filter out very short words
-          .slice(0, 50); // Limit to first 50 words for performance
+          .filter(w => w.trim().length > 2); // Filter out very short words
 
         // Create pseudo-word objects without bounding boxes
         words = rawWords.map((text, index) => ({
