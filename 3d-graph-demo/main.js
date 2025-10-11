@@ -1734,6 +1734,9 @@ autoOCRInput.addEventListener('change', async (e) => {
     // Load image to get dimensions for node positioning
     const reader = new FileReader();
     reader.onload = (event) => {
+      // Save image data URL for visualization
+      lastImageDataURL = event.target.result;
+
       const img = new Image();
       img.onload = () => {
         console.log(`📐 Image dimensions: ${img.width} x ${img.height}`);
@@ -1799,6 +1802,21 @@ autoOCRInput.addEventListener('change', async (e) => {
 
           console.log(`📐 Positioned ${wordsWithoutBBox.length} words in grid layout`);
         }
+
+        // Add image background to visualization (like showWordRectangles does)
+        imageLayer.selectAll('*').remove(); // Clear any existing image
+        const imageElement = imageLayer.append('image')
+          .attr('class', 'ocr-background')
+          .attr('href', lastImageDataURL)
+          .attr('width', imgWidth * scale)
+          .attr('height', imgHeight * scale)
+          .attr('x', offsetX)
+          .attr('y', offsetY)
+          .attr('opacity', 0.6) // Semi-transparent so nodes are visible
+          .style('pointer-events', 'none'); // Don't interfere with node interactions
+
+        console.log('✅ Image background added to visualization');
+        console.log(`🖼️ Image layer: ${imgWidth * scale}x${imgHeight * scale} at (${offsetX}, ${offsetY})`);
 
         updateGraph();
         saveState();
