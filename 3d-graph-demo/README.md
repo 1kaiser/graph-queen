@@ -6,7 +6,7 @@
 
 ![Graph Queen Demo](demo.gif)
 
-**[🚀 Live Demo](https://1kaiser.github.io/graph-queen/)** | **[📖 Documentation](#features)** | **[🧪 Testing](#testing)**
+**[🚀 Live Demo](https://1kaiser.github.io/graph-queen/)** | **[📦 GitHub](https://github.com/1kaiser/graph-queen)** | **[📖 Documentation](#features)** | **[🧪 Testing](#testing)**
 
 </div>
 
