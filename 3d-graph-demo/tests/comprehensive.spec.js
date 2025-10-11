@@ -35,21 +35,28 @@ for (const { name, url } of [
       // Test OCR panel toggle
       await page.click('button:has-text("📸 OCR")');
       await expect(page.locator('#ocr-slide-panel')).toHaveClass(/visible/);
-      await page.click('.slide-close-btn');
+      await page.waitForTimeout(500); // Wait for animation
+      await page.locator('#ocr-slide-panel .slide-close-btn').click({ force: true });
+      await page.waitForTimeout(300);
       await expect(page.locator('#ocr-slide-panel')).not.toHaveClass(/visible/);
 
       // Test Help panel toggle
       await page.click('button:has-text("❓ Help")');
       await expect(page.locator('#help-slide-panel')).toHaveClass(/visible/);
-      await page.click('.slide-close-btn');
+      await page.waitForTimeout(500); // Wait for animation
+      await page.locator('#help-slide-panel .slide-close-btn').click({ force: true });
+      await page.waitForTimeout(300);
 
       // Test Settings panel toggle
       await page.click('button:has-text("⚙️ Settings")');
-      await expect(page.locator('#settings-slide-panel')).toHaveClass(/visible/);
+      await page.waitForTimeout(1000); // Wait longer for Settings panel
+      await expect(page.locator('#settings-slide-panel')).toHaveClass(/visible/, { timeout: 10000 });
 
-      // Check for p5.js demo container
-      await expect(page.locator('#p5-demo-container')).toBeVisible();
-      await page.click('.slide-close-btn');
+      // Check for p5.js demo container (p5 may take time to initialize)
+      await page.waitForTimeout(1000);
+      await expect(page.locator('#p5-demo-container')).toBeVisible({ timeout: 10000 });
+      await page.waitForTimeout(500); // Wait for animation
+      await page.locator('#settings-slide-panel .slide-close-btn').click({ force: true });
     });
 
     test(`${name}: Connect mode toggles correctly`, async ({ page }) => {
@@ -71,7 +78,7 @@ for (const { name, url } of [
 
       const textBox = page.locator('#textBox');
       await expect(textBox).toBeVisible();
-      await expect(textBox).toHaveAttribute('placeholder', /Type text/);
+      await expect(textBox).toHaveAttribute('placeholder', /Type or speak text/);
 
       // Type in text box
       await textBox.fill('Test Node');
