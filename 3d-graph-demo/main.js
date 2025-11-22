@@ -838,6 +838,58 @@ function exportGraphData() {
     return;
   }
 
+  // Ask user which format they want
+  const exportType = confirm('Export to Obsidian Canvas?\n\nClick "OK" for Obsidian Canvas format (.canvas)\nClick "Cancel" for Standard JSON format (.json)');
+
+  if (exportType) {
+    // Export as Obsidian Canvas
+    const canvasNodes = graphNodes.map(node => ({
+      id: String(node.id),
+      type: 'text',
+      text: node.label || '',
+      x: Math.round(node.x),
+      y: Math.round(node.y),
+      width: 250, // Default width
+      height: 60, // Default height
+    }));
+
+    const canvasEdges = graphEdges.map((edge, index) => {
+      // Handle both object references and ID strings
+      const sourceId = typeof edge.source === 'object' ? edge.source.id : edge.source;
+      const targetId = typeof edge.target === 'object' ? edge.target.id : edge.target;
+
+      return {
+        id: edge.id || `edge-${index}-${Date.now()}`,
+        fromNode: String(sourceId),
+        fromSide: 'right', // Default side
+        toNode: String(targetId),
+        toSide: 'left', // Default side
+      };
+    });
+
+    const canvasData = {
+      nodes: canvasNodes,
+      edges: canvasEdges
+    };
+
+    const jsonString = JSON.stringify(canvasData, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    const filename = `graph_queen_${timestamp}.canvas`;
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+
+    URL.revokeObjectURL(url);
+    console.log(`💾 Exported Obsidian Canvas: ${filename}`);
+    alert(`Graph exported as Obsidian Canvas!\n\nFile: ${filename}\nNodes: ${canvasNodes.length}\nEdges: ${canvasEdges.length}\n\nYou can open this file directly in Obsidian!`);
+    return;
+  }
+
   const graphData = {
     metadata: {
       exported: new Date().toISOString(),
