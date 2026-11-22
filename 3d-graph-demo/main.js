@@ -821,6 +821,20 @@ function toggleSettingsPanel() {
   }
 }
 
+function toggleReferencesPanel(ev) {
+  const panel = document.getElementById('references-slide-panel');
+  const btn = ev && ev.currentTarget ? ev.currentTarget : (typeof event !== 'undefined' ? event.target : null);
+  if (!panel) return;
+  if (panel.classList.contains('visible')) {
+    panel.classList.remove('visible');
+    if (btn) btn.classList.remove('active');
+  } else {
+    closeAllPanels();
+    panel.classList.add('visible');
+    if (btn) btn.classList.add('active');
+  }
+}
+
 function closeAllPanels() {
   // Close all slide panels
   const panels = document.querySelectorAll('.slide-container');
@@ -963,6 +977,7 @@ function clearImageBackground() {
 window.toggleOCRPanel = toggleOCRPanel;
 window.toggleHelpPanel = toggleHelpPanel;
 window.toggleSettingsPanel = toggleSettingsPanel;
+window.toggleReferencesPanel = toggleReferencesPanel;
 window.closeAllPanels = closeAllPanels;
 window.createGraphFromWords = createGraphFromWords;
 window.exportGraphData = exportGraphData;

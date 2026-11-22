@@ -446,19 +446,20 @@ We welcome contributions! Here's how you can help:
 
 ---
 
-## 🙏 Acknowledgments
+## 📚 References & Acknowledgments
 
 ### Libraries & Tools
-- [D3.js](https://d3js.org/) - Mike Bostock and contributors
-- [Tesseract.js](https://tesseract.projectnaptha.com/) - Tesseract OCR team
+- [`3d-force-graph`](https://github.com/vasturiano/3d-force-graph) & [Three.js](https://threejs.org/) - Force-directed & 3D WebGL graph rendering
+- [D3.js](https://d3js.org/) - Mike Bostock and contributors (`d3-force`)
+- [Tesseract.js](https://tesseract.projectnaptha.com/) & [Scribe.js](https://github.com/scribeocr/scribe.js) - Client-side OCR
 - [PDF.js](https://mozilla.github.io/pdf.js/) - Mozilla Foundation
-- [Vite](https://vitejs.dev/) - Evan You and team
-- [Playwright](https://playwright.dev/) - Microsoft
+- [p5.js](https://p5js.org/), [Vite](https://vitejs.dev/), and [Playwright](https://playwright.dev/)
 
-### Inspiration
-- [ScribeOCR](https://scribeocr.com/) - OCR visualization UX
-- [Basil.js](https://basiljs.ch/) - Text graph connections
-- [Distill.pub](https://distill.pub) - Interactive explanations
+### Academic & Open Specifications
+- Sanchez-Lengeling, B., Reif, E., Pearce, A., & Wiltschko, A. B. (2021). *A Gentle Introduction to Graph Neural Networks*. Distill. [doi:10.23915/distill.00033](https://doi.org/10.23915/distill.00033)
+- [Basil.js](https://basiljs.ch/) - Text graph connections (`01_connecting_all_words_with_lines`)
+- [JSON Canvas](https://jsoncanvas.org/) - Open graph interchange format
+- Back to [1kaiser.github.io](https://1kaiser.github.io/)
 
 ---
 

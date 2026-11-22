@@ -80,3 +80,12 @@ This project was created with [Claude Code](https://claude.com/claude-code)
 **Built by:** [Kaiser Roy](https://github.com/1kaiser)
 
 **Co-Authored-By:** Claude <noreply@anthropic.com>
+
+---
+
+## 📚 References & Attributions
+
+- **3D & Force-Directed Graph Rendering:** [`3d-force-graph`](https://github.com/vasturiano/3d-force-graph), [Three.js](https://threejs.org/), and [D3.js](https://d3js.org/) (`d3-force`).
+- **Optical Character Recognition & Document Parsing:** [PDF.js](https://mozilla.github.io/pdf.js/), [Tesseract.js](https://tesseract.projectnaptha.com/), [Scribe.js](https://github.com/scribeocr/scribe.js), and Web Speech API.
+- **Creative Coding & Graph Specifications:** [p5.js](https://p5js.org/), [Basil.js](https://basiljs.ch/gallery/) (`01_connecting_all_words_with_lines`), [JSON Canvas](https://jsoncanvas.org/), and [A Gentle Introduction to Graph Neural Networks](https://distill.pub/2021/gnn-intro/) (`doi:10.23915/distill.00033`).
+- **Home:** [1kaiser.github.io](https://1kaiser.github.io/) | [Live Demo](https://1kaiser.github.io/graph-queen/)
