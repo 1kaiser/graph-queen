@@ -467,14 +467,16 @@
       font-size: 14px;
     }
   </style>
-  <script type="module" crossorigin src="/graph-queen/assets/index-DKwBQVWo.js"></script>
+  <script type="module" crossorigin src="/graph-queen/assets/index-BHUdBMUs.js"></script>
 </head>
 <body>
   <!-- Top toggle buttons -->
   <div class="top-toggle-buttons">
+    <a class="top-toggle-btn" href="https://1kaiser.github.io/" style="text-decoration: none; background: #0f172a; border-color: #0f172a;">&larr; 1kaiser.github.io</a>
     <button class="top-toggle-btn" onclick="toggleOCRPanel()">📸 OCR</button>
     <button class="top-toggle-btn" onclick="toggleHelpPanel()">❓ Help</button>
     <button class="top-toggle-btn" onclick="toggleSettingsPanel()">⚙️ Settings</button>
+    <button class="top-toggle-btn" onclick="toggleReferencesPanel(event)">📚 References</button>
   </div>
 
   <div id="container">
@@ -728,6 +730,21 @@ Visual Design</textarea>
         <strong>Based on:</strong> <a href="https://basiljs.ch/gallery/" target="_blank" style="color: #6366F1; text-decoration: underline;">basil.js</a> tutorial "01_connecting_all_words_with_lines" -
         Every word from the left block connects to every word on the right, creating <code>M × N</code> connections. Try editing the text to see the network update in real-time!
       </p>
+    </div>
+  </div>
+
+  <!-- References Slide Panel -->
+  <div id="references-slide-panel" class="slide-container">
+    <div class="slide-close-btn" onclick="closeAllPanels()">&times;</div>
+    <div class="slide-content">
+      <h1>📚 Graph Queen — References &amp; Attributions</h1>
+      <ul>
+        <li><strong>Graph Simulation &amp; 3D Rendering:</strong> <a href="https://github.com/vasturiano/3d-force-graph" target="_blank" rel="noopener">3d-force-graph</a>, <a href="https://threejs.org/" target="_blank" rel="noopener">Three.js</a>, and <a href="https://d3js.org/" target="_blank" rel="noopener">D3.js</a> (<code>d3-force</code>).</li>
+        <li><strong>Document Parsing &amp; Optical Character Recognition:</strong> <a href="https://mozilla.github.io/pdf.js/" target="_blank" rel="noopener">PDF.js</a>, <a href="https://tesseract.projectnaptha.com/" target="_blank" rel="noopener">Tesseract.js</a>, <a href="https://github.com/scribeocr/scribe.js" target="_blank" rel="noopener">Scribe.js OCR</a> UX patterns, and Web Speech API.</li>
+        <li><strong>Generative Graphics &amp; Open Formats:</strong> <a href="https://p5js.org/" target="_blank" rel="noopener">p5.js</a>, <a href="https://basiljs.ch/gallery/" target="_blank" rel="noopener">Basil.js</a> (<em>01_connecting_all_words_with_lines</em>), <a href="https://jsoncanvas.org/" target="_blank" rel="noopener">JSON Canvas</a>.</li>
+        <li><strong>Research Attribution:</strong> Sanchez-Lengeling, B., Reif, E., Pearce, A., &amp; Wiltschko, A. B. (2021). <em>A Gentle Introduction to Graph Neural Networks</em>, Distill (<a href="https://doi.org/10.23915/distill.00033" target="_blank" rel="noopener">doi:10.23915/distill.00033</a>).</li>
+        <li><strong>Source &amp; Portfolio:</strong> <a href="https://github.com/1kaiser/graph-queen" target="_blank" rel="noopener">github.com/1kaiser/graph-queen</a> &middot; <a href="https://1kaiser.github.io/">1kaiser.github.io</a>.</li>
+      </ul>
     </div>
   </div>
 
